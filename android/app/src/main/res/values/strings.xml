@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">GymManager</string>
+
+    <!-- Nav labels -->
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_members">Members</string>
+    <string name="nav_attendance">Attendance</string>
+    <string name="nav_payments">Payments</string>
+
+    <!-- Login -->
+    <string name="hint_username">Username</string>
+    <string name="hint_password">Password</string>
+    <string name="btn_login">Login</string>
+    <string name="label_login_title">Gym Manager</string>
+    <string name="label_login_subtitle">Sign in to continue</string>
+
+    <!-- Dashboard -->
+    <string name="label_active_members">Active Members</string>
+    <string name="label_inactive_members">Inactive</string>
+    <string name="label_todays_checkins">Today\'s Check-ins: %d</string>
+    <string name="label_monthly_revenue">Monthly Revenue</string>
+    <string name="label_recent_activity">Recent Activity</string>
+    <string name="label_check_in">Check-in</string>
+    <string name="label_payment_method">Payment · %s</string>
+
+    <!-- Members -->
+    <string name="title_add_member">Add Member</string>
+    <string name="title_delete_member">Delete Member</string>
+    <string name="hint_full_name">Full Name</string>
+    <string name="hint_phone">Phone Number</string>
+    <string name="hint_email">Email (optional)</string>
+    <string name="label_select_plan">Select Plan</string>
+    <string name="label_active_switch">Active</string>
+    <string name="msg_delete_member_confirm">Delete %s? This will also remove their attendance and payment records.</string>
+    <string name="label_no_members">No members found.\nTap + to add one.</string>
+    <string name="action_deactivate">Deactivate</string>
+    <string name="action_activate">Activate</string>
+    <string name="label_member_since">Member since</string>
+    <string name="label_plan">Plan</string>
+    <string name="label_attendance_history">Attendance History</string>
+    <string name="label_payment_history">Payment History</string>
+
+    <!-- Attendance -->
+    <string name="title_check_in">Check-in Member</string>
+    <string name="label_select_member">Select Member</string>
+    <string name="msg_checked_in">%s checked in successfully!</string>
+    <string name="label_no_checkins">No check-ins today yet.</string>
+
+    <!-- Payments -->
+    <string name="title_add_payment">Add Payment</string>
+    <string name="hint_amount">Amount</string>
+    <string name="hint_notes">Notes (optional)</string>
+    <string name="msg_payment_added">Payment recorded!</string>
+    <string name="label_no_payments">No payments recorded yet.</string>
+
+    <!-- Common actions -->
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_check_in">Check In</string>
+    <string name="action_logout">Logout</string>
+    <string name="action_search">Search members</string>
+</resources>

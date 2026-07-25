@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher icon foreground — white dumbbell / gym symbol -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outer inset group — keeps artwork inside the safe zone (72dp of 108dp) -->
+    <group android:translateX="18" android:translateY="18">
+
+        <!-- Left weight plate -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M8,28 L8,44 Q8,48 12,48 L18,48 Q22,48 22,44 L22,28 Q22,24 18,24 L12,24 Q8,24 8,28 Z" />
+
+        <!-- Bar (horizontal rod) -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M22,33 L50,33 L50,39 L22,39 Z" />
+
+        <!-- Right weight plate -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M50,28 L50,44 Q50,48 54,48 L60,48 Q64,48 64,44 L64,28 Q64,24 60,24 L54,24 Q50,24 50,28 Z" />
+
+    </group>
+</vector>

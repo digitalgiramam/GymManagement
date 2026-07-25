@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand -->
+    <color name="primary">#1565C0</color>
+    <color name="primary_dark">#003c8f</color>
+    <color name="primary_light">#5e92f3</color>
+    <color name="accent">#FF6F00</color>
+    <color name="white">#FFFFFF</color>
+    <color name="surface">#F5F7FA</color>
+
+    <!-- Status chips -->
+    <color name="status_active">#2E7D32</color>
+    <color name="status_inactive">#C62828</color>
+
+    <!-- Text -->
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+
+    <!-- Dashboard cards -->
+    <color name="card_active">#E3F2FD</color>
+    <color name="card_inactive">#FFEBEE</color>
+    <color name="card_checkin">#E8F5E9</color>
+    <color name="card_revenue">#FFF8E1</color>
+</resources>

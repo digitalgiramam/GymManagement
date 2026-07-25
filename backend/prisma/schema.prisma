@@ -1,0 +1,99 @@
+// Prisma schema for Gym Management System
+// Database: Neon (serverless PostgreSQL)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+//  Owner — gym admin authentication
+// ─────────────────────────────────────────────
+model Owner {
+  id           Int    @id @default(autoincrement())
+  username     String @unique
+  passwordHash String
+
+  @@map("owners")
+}
+
+// ─────────────────────────────────────────────
+//  Plan — membership tier definition
+// ─────────────────────────────────────────────
+model Plan {
+  id           Int      @id @default(autoincrement())
+  name         String
+  durationDays Int
+  fee          Float
+  createdAt    DateTime @default(now())
+  members      Member[]
+
+  @@map("plans")
+}
+
+// ─────────────────────────────────────────────
+//  Member — gym member profile
+// ─────────────────────────────────────────────
+model Member {
+  id         Int          @id @default(autoincrement())
+  fullName   String
+  phone      String       @unique
+  email      String?
+  joinDate   DateTime     @default(now())
+  planId     Int
+  plan       Plan         @relation(fields: [planId], references: [id])
+  status     MemberStatus @default(Active)
+  createdAt  DateTime     @default(now())
+  attendance Attendance[]
+  payments   Payment[]
+
+  @@index([phone])
+  @@index([planId])
+  @@map("members")
+}
+
+enum MemberStatus {
+  Active
+  Inactive
+}
+
+// ─────────────────────────────────────────────
+//  Attendance — daily check-in records
+// ─────────────────────────────────────────────
+model Attendance {
+  id          Int      @id @default(autoincrement())
+  memberId    Int
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  checkedInAt DateTime @default(now())
+
+  @@index([memberId])
+  @@index([checkedInAt])
+  @@map("attendance")
+}
+
+// ─────────────────────────────────────────────
+//  Payment — fee payment records
+// ─────────────────────────────────────────────
+model Payment {
+  id          Int           @id @default(autoincrement())
+  memberId    Int
+  member      Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  amount      Float
+  method      PaymentMethod
+  notes       String?
+  paymentDate DateTime      @default(now())
+
+  @@index([memberId])
+  @@index([paymentDate])
+  @@map("payments")
+}
+
+enum PaymentMethod {
+  Cash
+  Card
+  Transfer
+}
