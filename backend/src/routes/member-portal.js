@@ -8,10 +8,9 @@
  */
 
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 function requireMemberRole(req, res, next) {
   if (req.user?.role !== 'MEMBER' || !req.user?.memberId) {

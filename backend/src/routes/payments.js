@@ -12,10 +12,9 @@
 
 const express = require('express');
 const { z }   = require('zod');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // ── Zod schemas ────────────────────────────────────────────────────────────
 const paymentSchema = z.object({

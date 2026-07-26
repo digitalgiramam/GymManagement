@@ -11,10 +11,9 @@ const express = require('express');
 const jwt     = require('jsonwebtoken');
 const bcrypt  = require('bcryptjs');
 const { z }   = require('zod');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 const registerSchema = z.object({
   email:    z.string().email('Valid email required'),

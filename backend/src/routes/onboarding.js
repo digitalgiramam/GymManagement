@@ -16,11 +16,10 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { z } = require('zod');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const { authenticateJWT } = require('../middleware/auth');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 const createGymSchema = z.object({
   gymName: z.string().min(2, 'Gym name must be at least 2 characters'),

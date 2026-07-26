@@ -17,10 +17,9 @@
  */
 
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 router.get('/stats', async (req, res) => {
   const tenantId   = req.user.tenantId;

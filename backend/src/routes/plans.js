@@ -10,10 +10,9 @@
 
 const express = require('express');
 const { z }   = require('zod');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 const planSchema = z.object({
   name:         z.string().min(1, 'Name is required').max(100),

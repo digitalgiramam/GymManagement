@@ -12,10 +12,9 @@
 const express = require('express');
 const bcrypt  = require('bcryptjs');
 const { z }   = require('zod');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 const staffSchema = z.object({
   fullName: z.string().min(1, 'Full name is required').max(150),
