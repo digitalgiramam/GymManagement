@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "nodemon api/index.js",
     "start": "node api/index.js",
-    "build": "prisma generate && prisma migrate deploy",
+    "build": "prisma generate",
+    "migrate": "prisma migrate deploy",
     "seed": "node prisma/seed.js",
     "migrate:dev": "prisma migrate dev",
     "studio": "prisma studio",
@@ -23,7 +24,7 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.9",
-    "prisma": "5.22.0"
+    "prisma": "^7.8.0"
   },
   "engines": {
     "node": ">=18.x"
