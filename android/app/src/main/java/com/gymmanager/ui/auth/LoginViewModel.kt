@@ -4,29 +4,41 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gymmanager.data.model.LoginResponse
+import com.gymmanager.data.model.AuthResponse
 import com.gymmanager.data.repository.AuthRepository
 import com.gymmanager.utils.NetworkResult
 import kotlinx.coroutines.launch
 
 class LoginViewModel(private val repository: AuthRepository) : ViewModel() {
 
-    private val _loginResult = MutableLiveData<NetworkResult<LoginResponse>>()
-    val loginResult: LiveData<NetworkResult<LoginResponse>> = _loginResult
+    private val _authResult = MutableLiveData<NetworkResult<AuthResponse>>()
+    val authResult: LiveData<NetworkResult<AuthResponse>> = _authResult
 
-    fun login(username: String, password: String) {
-        if (username.isBlank()) {
-            _loginResult.value = NetworkResult.Error("Username is required")
-            return
-        }
-        if (password.isBlank()) {
-            _loginResult.value = NetworkResult.Error("Password is required")
-            return
-        }
-
-        _loginResult.value = NetworkResult.Loading
+    fun login(email: String, password: String) {
+        _authResult.value = NetworkResult.Loading
         viewModelScope.launch {
-            _loginResult.value = repository.login(username.trim(), password)
+            _authResult.value = repository.login(email, password)
+        }
+    }
+
+    fun register(email: String, password: String, name: String) {
+        _authResult.value = NetworkResult.Loading
+        viewModelScope.launch {
+            _authResult.value = repository.register(email, password, name)
+        }
+    }
+
+    fun staffLogin(email: String, password: String) {
+        _authResult.value = NetworkResult.Loading
+        viewModelScope.launch {
+            _authResult.value = repository.staffLogin(email, password)
+        }
+    }
+
+    fun memberLogin(email: String, password: String) {
+        _authResult.value = NetworkResult.Loading
+        viewModelScope.launch {
+            _authResult.value = repository.memberLogin(email, password)
         }
     }
 }

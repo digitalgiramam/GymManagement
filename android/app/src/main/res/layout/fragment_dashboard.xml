@@ -24,7 +24,7 @@
                 android:layout_gravity="center"
                 android:visibility="gone" />
 
-            <!-- Stats row 1: Active / Inactive -->
+            <!-- Row 1: Active / Inactive members -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -39,11 +39,8 @@
                     app:cardBackgroundColor="@color/card_active"
                     app:cardCornerRadius="12dp"
                     app:cardElevation="2dp">
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="vertical" android:padding="16dp">
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                             android:text="@string/label_active_members"
                             android:textColor="@color/text_secondary" android:textSize="12sp" />
@@ -62,11 +59,8 @@
                     app:cardBackgroundColor="@color/card_inactive"
                     app:cardCornerRadius="12dp"
                     app:cardElevation="2dp">
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="vertical" android:padding="16dp">
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                             android:text="@string/label_inactive_members"
                             android:textColor="@color/text_secondary" android:textSize="12sp" />
@@ -78,7 +72,7 @@
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
 
-            <!-- Stats row 2: Check-ins / Revenue -->
+            <!-- Row 2: Check-ins / Revenue -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -94,13 +88,10 @@
                     app:cardBackgroundColor="@color/card_checkin"
                     app:cardCornerRadius="12dp"
                     app:cardElevation="2dp">
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="vertical" android:padding="16dp">
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="Today\'s Check-ins"
+                            android:text="Today's Check-ins"
                             android:textColor="@color/text_secondary" android:textSize="12sp" />
                         <TextView android:id="@+id/tvCheckIns"
                             android:layout_width="wrap_content" android:layout_height="wrap_content"
@@ -117,11 +108,8 @@
                     app:cardBackgroundColor="@color/card_revenue"
                     app:cardCornerRadius="12dp"
                     app:cardElevation="2dp">
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="vertical" android:padding="16dp">
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                             android:text="@string/label_monthly_revenue"
                             android:textColor="@color/text_secondary" android:textSize="12sp" />
@@ -129,6 +117,53 @@
                             android:layout_width="wrap_content" android:layout_height="wrap_content"
                             android:text="—" android:textColor="@color/accent"
                             android:textSize="24sp" android:textStyle="bold" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <!-- Row 3: Expenses / Net Profit (SaaS new) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal"
+                android:weightSum="2">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="vertical" android:padding="16dp">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="@string/label_monthly_expenses"
+                            android:textColor="@color/text_secondary" android:textSize="12sp" />
+                        <TextView android:id="@+id/tvExpenses"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="—" android:textColor="@color/error"
+                            android:textSize="22sp" android:textStyle="bold" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="vertical" android:padding="16dp">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="@string/label_net_profit"
+                            android:textColor="@color/text_secondary" android:textSize="12sp" />
+                        <TextView android:id="@+id/tvNetProfit"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="—" android:textColor="@color/status_active"
+                            android:textSize="22sp" android:textStyle="bold" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
@@ -148,7 +183,8 @@
                 android:id="@+id/rvRecentActivity"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:nestedScrollingEnabled="false" />
+                android:nestedScrollingEnabled="false"
+                app:layoutManager="LinearLayoutManager" />
 
         </LinearLayout>
     </ScrollView>

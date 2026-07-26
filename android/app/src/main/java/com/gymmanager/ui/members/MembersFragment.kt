@@ -1,5 +1,6 @@
 package com.gymmanager.ui.members
 
+import android.app.DatePickerDialog
 import android.os.Bundle
 import android.view.*
 import android.widget.ArrayAdapter
@@ -12,15 +13,21 @@ import androidx.navigation.fragment.findNavController
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.gymmanager.R
 import com.gymmanager.data.model.CreateMemberRequest
+import com.gymmanager.data.model.Member
 import com.gymmanager.data.model.Plan
+import com.gymmanager.data.model.UpdateMemberRequest
 import com.gymmanager.databinding.DialogAddMemberBinding
+import com.gymmanager.databinding.DialogEditMemberBinding
 import com.gymmanager.databinding.FragmentMembersBinding
 import com.gymmanager.gymApp
 import com.gymmanager.utils.NetworkResult
 import com.gymmanager.utils.hide
+import com.gymmanager.utils.toCurrencyString
 import com.gymmanager.utils.show
 import com.gymmanager.utils.showSnackbar
 import com.gymmanager.utils.showSnackbarError
+import java.text.SimpleDateFormat
+import java.util.*
 
 class MembersFragment : Fragment() {
 
@@ -60,7 +67,7 @@ class MembersFragment : Fragment() {
                     bundleOf("memberId" to member.id),
                 )
             },
-            onItemLongClick  = { member -> confirmDelete(member.id, member.fullName) },
+            onItemLongClick  = { member -> showMemberOptions(member) },
         )
         binding.rvMembers.adapter = adapter
 
@@ -77,8 +84,12 @@ class MembersFragment : Fragment() {
             }
         })
 
-        viewModel.plans.observe(viewLifecycleOwner) { plans ->
-            availablePlans = plans
+        viewModel.plans.observe(viewLifecycleOwner) { result ->
+            when (result) {
+                is NetworkResult.Success -> availablePlans = result.data
+                is NetworkResult.Error   -> binding.root.showSnackbarError("Plans failed to load: ${result.message}")
+                else -> Unit
+            }
         }
 
         viewModel.members.observe(viewLifecycleOwner) { result ->
@@ -100,11 +111,104 @@ class MembersFragment : Fragment() {
 
         viewModel.actionResult.observe(viewLifecycleOwner) { result ->
             when (result) {
-                is NetworkResult.Success -> binding.root.showSnackbar("Done!")
+                is NetworkResult.Success -> binding.root.showSnackbar(getString(R.string.msg_member_updated))
                 is NetworkResult.Error   -> binding.root.showSnackbarError(result.message)
                 else -> Unit
             }
         }
+    }
+
+    // ── Long-press options menu ────────────────────────────────────────────
+    private fun showMemberOptions(member: Member) {
+        val options = arrayOf(getString(R.string.action_edit), getString(R.string.action_delete))
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(member.fullName)
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> showEditMemberDialog(member)
+                    1 -> confirmDelete(member.id, member.fullName)
+                }
+            }
+            .show()
+    }
+
+    // ── Edit member dialog ─────────────────────────────────────────────────
+    private fun showEditMemberDialog(member: Member) {
+        if (availablePlans.isEmpty()) {
+            binding.root.showSnackbarError("No plans available.")
+            return
+        }
+
+        val db = DialogEditMemberBinding.inflate(layoutInflater)
+        val isoFmt  = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+        val dispFmt = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+
+        // Pre-fill existing values
+        db.etFullName.setText(member.fullName)
+        db.etPhone.setText(member.phone)
+        db.etEmail.setText(member.email ?: "")
+        db.etLocation.setText(member.location ?: "")
+        db.switchActive.isChecked = member.status == "Active"
+
+        // Parse stored joinDate for display
+        val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+        try { cal.time = isoFmt.parse(member.joinDate) ?: Date() } catch (_: Exception) {}
+        db.etJoinDate.setText(dispFmt.format(cal.time))
+
+        // Plan spinner — select current plan
+        val planNames = availablePlans.map { "${it.name} (${it.durationDays}d)" }
+        db.spinnerPlan.adapter = ArrayAdapter(
+            requireContext(), android.R.layout.simple_spinner_item, planNames
+        ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        val currentPlanIdx = availablePlans.indexOfFirst { it.id == member.planId }.coerceAtLeast(0)
+        db.spinnerPlan.setSelection(currentPlanIdx)
+
+        // Join date picker
+        db.etJoinDate.setOnClickListener {
+            DatePickerDialog(
+                requireContext(),
+                { _, y, m, d ->
+                    cal.set(y, m, d, 0, 0, 0); cal.set(Calendar.MILLISECOND, 0)
+                    db.etJoinDate.setText(dispFmt.format(cal.time))
+                },
+                cal.get(Calendar.YEAR),
+                cal.get(Calendar.MONTH),
+                cal.get(Calendar.DAY_OF_MONTH),
+            ).show()
+        }
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.title_edit_member)
+            .setView(db.root)
+            .setPositiveButton(R.string.action_save) { _, _ ->
+                val fullName = db.etFullName.text?.toString()?.trim() ?: ""
+                val phone    = db.etPhone.text?.toString()?.trim() ?: ""
+                if (fullName.isBlank() || phone.isBlank()) {
+                    binding.root.showSnackbarError("Name and phone are required.")
+                    return@setPositiveButton
+                }
+                val email    = db.etEmail.text?.toString()?.trim()
+                val location = db.etLocation.text?.toString()?.trim()
+                val status   = if (db.switchActive.isChecked) "Active" else "Inactive"
+                val plan     = availablePlans[db.spinnerPlan.selectedItemPosition]
+
+                viewModel.updateMember(
+                    member.id,
+                    UpdateMemberRequest(
+                        fullName = fullName,
+                        phone    = phone,
+                        email    = email?.ifBlank { null },
+                        location = location?.ifBlank { null },
+                        planId   = plan.id,
+                        status   = status,
+                        joinDate = isoFmt.format(cal.time),
+                    )
+                )
+            }
+            .setNegativeButton(R.string.action_cancel, null)
+            .show()
     }
 
     private fun showAddMemberDialog() {
@@ -115,7 +219,8 @@ class MembersFragment : Fragment() {
         val dialogBinding = DialogAddMemberBinding.inflate(layoutInflater)
 
         // Populate plan spinner
-        val planNames = availablePlans.map { "${it.name} (${it.durationDays}d – ${"%.2f".format(it.fee)})" }
+        val symbol    = requireContext().gymApp.tokenManager.getCurrencySymbol()
+        val planNames = availablePlans.map { "${it.name} (${it.durationDays}d – ${it.fee.toCurrencyString(symbol)})" }
         dialogBinding.spinnerPlan.adapter = ArrayAdapter(
             requireContext(), android.R.layout.simple_spinner_item, planNames
         ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
@@ -124,11 +229,12 @@ class MembersFragment : Fragment() {
             .setTitle(R.string.title_add_member)
             .setView(dialogBinding.root)
             .setPositiveButton(R.string.action_save) { _, _ ->
-                val fullName = dialogBinding.etFullName.text?.toString()?.trim() ?: ""
-                val phone    = dialogBinding.etPhone.text?.toString()?.trim() ?: ""
-                val email    = dialogBinding.etEmail.text?.toString()?.trim()
+                val fullName  = dialogBinding.etFullName.text?.toString()?.trim() ?: ""
+                val phone     = dialogBinding.etPhone.text?.toString()?.trim() ?: ""
+                val email     = dialogBinding.etEmail.text?.toString()?.trim()
+                val location  = dialogBinding.etLocation.text?.toString()?.trim()
                 val selectedPlan = availablePlans[dialogBinding.spinnerPlan.selectedItemPosition]
-                val status   = if (dialogBinding.switchActive.isChecked) "Active" else "Inactive"
+                val status    = if (dialogBinding.switchActive.isChecked) "Active" else "Inactive"
 
                 if (fullName.isBlank() || phone.isBlank()) {
                     binding.root.showSnackbarError("Name and phone are required.")
@@ -136,7 +242,14 @@ class MembersFragment : Fragment() {
                 }
 
                 viewModel.createMember(
-                    CreateMemberRequest(fullName, phone, email?.ifBlank { null }, selectedPlan.id, status)
+                    CreateMemberRequest(
+                        fullName = fullName,
+                        phone    = phone,
+                        email    = email?.ifBlank { null },
+                        location = location?.ifBlank { null },
+                        planId   = selectedPlan.id,
+                        status   = status,
+                    )
                 )
             }
             .setNegativeButton(R.string.action_cancel, null)
@@ -150,6 +263,12 @@ class MembersFragment : Fragment() {
             .setPositiveButton(R.string.action_delete) { _, _ -> viewModel.deleteMember(memberId) }
             .setNegativeButton(R.string.action_cancel, null)
             .show()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.loadMembers()
+        viewModel.loadPlans()
     }
 
     override fun onDestroyView() {

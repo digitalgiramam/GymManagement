@@ -42,4 +42,41 @@
         android:name="com.gymmanager.ui.payments.PaymentsFragment"
         android:label="Payments"
         tools:layout="@layout/fragment_payments" />
+
+    <!-- ── Bottom Nav: More (Master) ─────────────────────────────────────── -->
+    <fragment
+        android:id="@+id/masterFragment"
+        android:name="com.gymmanager.ui.master.MasterFragment"
+        android:label="More"
+        tools:layout="@layout/fragment_master">
+        <action
+            android:id="@+id/action_masterFragment_to_expensesFragment"
+            app:destination="@id/expensesFragment" />
+        <action
+            android:id="@+id/action_masterFragment_to_staffFragment"
+            app:destination="@id/staffFragment" />
+        <action
+            android:id="@+id/action_masterFragment_to_settingsFragment"
+            app:destination="@id/settingsFragment" />
+    </fragment>
+
+    <!-- ── Sub-screens from Master ───────────────────────────────────────── -->
+    <fragment
+        android:id="@+id/expensesFragment"
+        android:name="com.gymmanager.ui.expenses.ExpensesFragment"
+        android:label="Expenses"
+        tools:layout="@layout/fragment_expenses" />
+
+    <fragment
+        android:id="@+id/staffFragment"
+        android:name="com.gymmanager.ui.staff.StaffFragment"
+        android:label="Staff"
+        tools:layout="@layout/fragment_staff" />
+
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.gymmanager.ui.settings.SettingsFragment"
+        android:label="Settings"
+        tools:layout="@layout/fragment_settings" />
+
 </navigation>

@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.gymmanager.data.model.CreatePaymentRequest
 import com.gymmanager.data.model.Member
 import com.gymmanager.data.model.Payment
+import com.gymmanager.data.model.PaymentMethod
 import com.gymmanager.data.repository.MemberRepository
 import com.gymmanager.data.repository.PaymentRepository
 import com.gymmanager.utils.NetworkResult
@@ -20,8 +21,11 @@ class PaymentsViewModel(
     private val _payments = MutableLiveData<NetworkResult<List<Payment>>>()
     val payments: LiveData<NetworkResult<List<Payment>>> = _payments
 
-    private val _members = MutableLiveData<List<Member>>()
+    private val _members = MutableLiveData<List<Member>>(emptyList())
     val members: LiveData<List<Member>> = _members
+
+    private val _paymentMethods = MutableLiveData<List<PaymentMethod>>(emptyList())
+    val paymentMethods: LiveData<List<PaymentMethod>> = _paymentMethods
 
     private val _addResult = MutableLiveData<NetworkResult<Payment>>()
     val addResult: LiveData<NetworkResult<Payment>> = _addResult
@@ -29,6 +33,7 @@ class PaymentsViewModel(
     init {
         loadPayments()
         loadMembers()
+        loadPaymentMethods()
     }
 
     fun loadPayments() {
@@ -42,6 +47,13 @@ class PaymentsViewModel(
         viewModelScope.launch {
             val r = memberRepo.getMembers()
             if (r is NetworkResult.Success) _members.value = r.data
+        }
+    }
+
+    fun loadPaymentMethods() {
+        viewModelScope.launch {
+            val r = paymentRepo.getPaymentMethods()
+            if (r is NetworkResult.Success) _paymentMethods.value = r.data
         }
     }
 

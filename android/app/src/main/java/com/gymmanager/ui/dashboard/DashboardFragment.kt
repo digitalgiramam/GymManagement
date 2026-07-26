@@ -29,7 +29,7 @@ class DashboardFragment : Fragment() {
         })[DashboardViewModel::class.java]
     }
 
-    private val activityAdapter = RecentActivityAdapter()
+    private val activityAdapter by lazy { RecentActivityAdapter() }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -43,7 +43,6 @@ class DashboardFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         binding.rvRecentActivity.adapter = activityAdapter
-
         binding.swipeRefresh.setOnRefreshListener { viewModel.loadStats() }
 
         viewModel.stats.observe(viewLifecycleOwner) { result ->
@@ -52,20 +51,28 @@ class DashboardFragment : Fragment() {
                 is NetworkResult.Loading -> binding.progressBar.show()
                 is NetworkResult.Success -> {
                     binding.progressBar.hide()
-                    val s = result.data
-                    binding.tvActiveCount.text    = s.totalActiveMembers.toString()
-                    binding.tvInactiveCount.text  = s.totalInactiveMembers.toString()
-                    binding.tvCheckIns.text       = s.todayCheckIns.toString()
-                    binding.tvRevenue.text        = s.currentMonthRevenue.toCurrencyString()
+                    val s      = result.data
+                    val symbol = requireContext().gymApp.tokenManager.getCurrencySymbol()
+                    binding.tvActiveCount.text   = s.totalActiveMembers.toString()
+                    binding.tvInactiveCount.text = s.totalInactiveMembers.toString()
+                    binding.tvCheckIns.text      = s.todayCheckIns.toString()
+                    binding.tvRevenue.text       = s.currentMonthRevenue.toCurrencyString(symbol)
 
-                    // Merge and sort recent activity by time desc
-                    val checkIns  = s.last5CheckIns.map {
+                    // New SaaS fields — show if views exist in layout
+                    binding.tvExpenses?.text  = s.currentMonthExpenses.toCurrencyString(symbol)
+                    binding.tvNetProfit?.text = s.netProfit.toCurrencyString(symbol)
+
+                    // Merge recent activity: check-ins + payments (sorted newest first)
+                    val checkIns = s.last5CheckIns.map {
                         ActivityItem.CheckIn(it.id, it.member?.fullName ?: "—", it.checkedInAt)
                     }
-                    val payments  = s.last5Payments.map {
+                    val payments = s.last5Payments.map {
                         ActivityItem.PaymentItem(
-                            it.id, it.member?.fullName ?: "—",
-                            it.amount, it.method, it.paymentDate,
+                            id         = it.id,
+                            memberName = it.member?.fullName ?: "—",
+                            amount     = it.amount,
+                            method     = it.method?.name ?: "—",   // PaymentMethodSummary → String
+                            time       = it.paymentDate,
                         )
                     }
                     activityAdapter.submitList((checkIns + payments).sortedByDescending {
@@ -81,6 +88,11 @@ class DashboardFragment : Fragment() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.loadStats()
     }
 
     override fun onDestroyView() {

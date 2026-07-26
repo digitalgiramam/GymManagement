@@ -7,18 +7,22 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.gymmanager.data.model.Payment
 import com.gymmanager.databinding.ItemPaymentBinding
+import com.gymmanager.gymApp
 import com.gymmanager.utils.toCurrencyString
 import com.gymmanager.utils.toDisplayDate
 
-class PaymentsAdapter : ListAdapter<Payment, PaymentsAdapter.ViewHolder>(DIFF) {
+class PaymentsAdapter :
+    ListAdapter<Payment, PaymentsAdapter.ViewHolder>(DIFF) {
 
     inner class ViewHolder(private val b: ItemPaymentBinding) :
         RecyclerView.ViewHolder(b.root) {
 
         fun bind(item: Payment) {
+            // Read symbol fresh on every bind — never stale even after a settings change.
+            val symbol = b.root.context.gymApp.tokenManager.getCurrencySymbol()
             b.tvMemberName.text = item.member?.fullName ?: "Member #${item.memberId}"
-            b.tvAmount.text     = item.amount.toCurrencyString()
-            b.tvMethod.text     = item.method
+            b.tvAmount.text     = item.amount.toCurrencyString(symbol)
+            b.tvMethod.text     = item.method?.name ?: "—"
             b.tvDate.text       = item.paymentDate.toDisplayDate()
             b.tvNotes.text      = item.notes ?: ""
             b.tvNotes.visibility = if (item.notes.isNullOrBlank()) ViewGroup.GONE else ViewGroup.VISIBLE

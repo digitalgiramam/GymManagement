@@ -58,6 +58,22 @@
                 android:layout_height="wrap_content"
                 android:textColor="@color/primary"
                 android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tvLastPaid"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp"
+                android:layout_marginTop="2dp" />
+
+            <TextView
+                android:id="@+id/tvExpiry"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:layout_marginTop="1dp" />
         </LinearLayout>
 
         <TextView

@@ -1,5 +1,5 @@
 /**
- * Dashboard route
+ * Dashboard route (multi-tenant)
  * GET /api/dashboard/stats
  *
  * Returns:
@@ -7,8 +7,13 @@
  *   totalInactiveMembers  — count of Inactive members
  *   todayCheckIns         — check-ins since midnight today
  *   currentMonthRevenue   — sum of payments in current calendar month
+ *   currentMonthExpenses  — sum of expenses in current calendar month
+ *   netProfit             — revenue - expenses
  *   last5CheckIns         — 5 most recent attendance records
  *   last5Payments         — 5 most recent payment records
+ *   last5Expenses         — 5 most recent expenses
+ *
+ * All queries scoped to req.user.tenantId
  */
 
 const express = require('express');
@@ -17,9 +22,10 @@ const { PrismaClient } = require('@prisma/client');
 const router = express.Router();
 const prisma = new PrismaClient();
 
-router.get('/stats', async (_req, res) => {
-  const now         = new Date();
-  const startOfDay  = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+router.get('/stats', async (req, res) => {
+  const tenantId   = req.user.tenantId;
+  const now        = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
   try {
@@ -28,41 +34,60 @@ router.get('/stats', async (_req, res) => {
       totalInactive,
       todayCheckIns,
       monthRevenueAgg,
+      monthExpenseAgg,
       last5CheckIns,
       last5Payments,
+      last5Expenses,
     ] = await prisma.$transaction([
-      prisma.member.count({ where: { status: 'Active'   } }),
-      prisma.member.count({ where: { status: 'Inactive' } }),
+      prisma.member.count({ where: { tenantId, status: 'Active'   } }),
+      prisma.member.count({ where: { tenantId, status: 'Inactive' } }),
       prisma.attendance.count({
-        where: { checkedInAt: { gte: startOfDay } },
+        where: { tenantId, checkedInAt: { gte: startOfDay } },
       }),
       prisma.payment.aggregate({
         _sum: { amount: true },
-        where: { paymentDate: { gte: startOfMonth } },
+        where: { tenantId, paymentDate: { gte: startOfMonth } },
+      }),
+      prisma.expense.aggregate({
+        _sum: { amount: true },
+        where: { tenantId, expenseDate: { gte: startOfMonth } },
       }),
       prisma.attendance.findMany({
         take:    5,
+        where:   { tenantId },
         orderBy: { checkedInAt: 'desc' },
-        include: {
-          member: { select: { id: true, fullName: true, phone: true } },
-        },
+        include: { member: { select: { id: true, fullName: true, phone: true } } },
       }),
       prisma.payment.findMany({
         take:    5,
+        where:   { tenantId },
         orderBy: { paymentDate: 'desc' },
         include: {
           member: { select: { id: true, fullName: true, phone: true } },
+          method: { select: { id: true, name: true } },
         },
       }),
+      prisma.expense.findMany({
+        take:    5,
+        where:   { tenantId },
+        orderBy: { expenseDate: 'desc' },
+        include: { category: { select: { id: true, name: true } } },
+      }),
     ]);
+
+    const revenue  = monthRevenueAgg._sum.amount  ?? 0;
+    const expenses = monthExpenseAgg._sum.amount ?? 0;
 
     return res.json({
       totalActiveMembers:   totalActive,
       totalInactiveMembers: totalInactive,
       todayCheckIns,
-      currentMonthRevenue:  monthRevenueAgg._sum.amount ?? 0,
+      currentMonthRevenue:  revenue,
+      currentMonthExpenses: expenses,
+      netProfit:            revenue - expenses,
       last5CheckIns,
       last5Payments,
+      last5Expenses,
     });
   } catch (err) {
     console.error('[dashboard/stats]', err);

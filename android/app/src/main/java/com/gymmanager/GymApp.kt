@@ -6,9 +6,7 @@ import com.gymmanager.data.local.TokenManager
 import com.gymmanager.data.repository.*
 
 /**
- * Application-level singleton that wires together the dependency graph manually
- * (no Hilt/Dagger required for this MVP — add them when the team scales).
- *
+ * Application-level singleton that wires together the dependency graph manually.
  * Repositories are lazily initialised so the first access triggers construction.
  */
 class GymApp : Application() {
@@ -21,7 +19,11 @@ class GymApp : Application() {
     val planRepository       by lazy { PlanRepository(apiService) }
     val attendanceRepository by lazy { AttendanceRepository(apiService) }
     val paymentRepository    by lazy { PaymentRepository(apiService) }
-    val dashboardRepository  by lazy { DashboardRepository(apiService) }
+    val expenseRepository    by lazy { ExpenseRepository(apiService) }
+    val staffRepository      by lazy { StaffRepository(apiService) }
+    val settingsRepository   by lazy { SettingsRepository(apiService) }
+    val dashboardRepository      by lazy { DashboardRepository(apiService) }
+    val memberPortalRepository   by lazy { MemberPortalRepository(apiService) }
 }
 
 /** Convenience extension to reach [GymApp] from any Fragment or Activity. */

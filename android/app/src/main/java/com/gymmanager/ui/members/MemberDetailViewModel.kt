@@ -5,18 +5,28 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymmanager.data.model.MemberDetail
+import com.gymmanager.data.model.Plan
 import com.gymmanager.data.model.UpdateMemberRequest
 import com.gymmanager.data.repository.MemberRepository
+import com.gymmanager.data.repository.PlanRepository
 import com.gymmanager.utils.NetworkResult
 import kotlinx.coroutines.launch
 
-class MemberDetailViewModel(private val repository: MemberRepository) : ViewModel() {
+class MemberDetailViewModel(
+    private val repository: MemberRepository,
+    private val planRepository: PlanRepository,
+) : ViewModel() {
 
     private val _member = MutableLiveData<NetworkResult<MemberDetail>>()
     val member: LiveData<NetworkResult<MemberDetail>> = _member
 
+    private val _plans = MutableLiveData<List<Plan>>(emptyList())
+    val plans: LiveData<List<Plan>> = _plans
+
     private val _updateResult = MutableLiveData<NetworkResult<Any>>()
     val updateResult: LiveData<NetworkResult<Any>> = _updateResult
+
+    init { loadPlans() }
 
     fun loadMember(id: Int) {
         _member.value = NetworkResult.Loading
@@ -25,11 +35,28 @@ class MemberDetailViewModel(private val repository: MemberRepository) : ViewMode
         }
     }
 
+    private fun loadPlans() {
+        viewModelScope.launch {
+            val result = planRepository.getPlans()
+            if (result is NetworkResult.Success) _plans.value = result.data
+        }
+    }
+
+    fun updateMember(id: Int, request: UpdateMemberRequest) {
+        viewModelScope.launch {
+            val result = repository.updateMember(id, request)
+            @Suppress("UNCHECKED_CAST")
+            _updateResult.value = result as NetworkResult<Any>
+            if (result is NetworkResult.Success) loadMember(id)
+        }
+    }
+
     fun toggleStatus(id: Int, currentStatus: String) {
         val newStatus = if (currentStatus == "Active") "Inactive" else "Active"
         viewModelScope.launch {
             val result = repository.updateMember(id, UpdateMemberRequest(
-                fullName = null, phone = null, email = null, planId = null, status = newStatus
+                fullName = null, phone = null, email = null, location = null,
+                planId = null, status = newStatus, joinDate = null,
             ))
             @Suppress("UNCHECKED_CAST")
             _updateResult.value = result as NetworkResult<Any>

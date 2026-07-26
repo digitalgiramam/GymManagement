@@ -1,5 +1,7 @@
-// Prisma schema for Gym Management System
-// Database: Neon (serverless PostgreSQL)
+// ─────────────────────────────────────────────────────────────────────────────
+//  Multi-tenant SaaS Gym Management Platform — Prisma Schema
+//  Database: Neon (serverless PostgreSQL)
+// ─────────────────────────────────────────────────────────────────────────────
 
 generator client {
   provider = "prisma-client-js"
@@ -11,14 +13,46 @@ datasource db {
 }
 
 // ─────────────────────────────────────────────
-//  Owner — gym admin authentication
+//  User — authenticated gym owner (email/password)
 // ─────────────────────────────────────────────
-model Owner {
-  id           Int    @id @default(autoincrement())
-  username     String @unique
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  name         String
   passwordHash String
+  tenantId     Int?                       // null until they complete onboarding
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id])
+  createdAt    DateTime @default(now())
 
-  @@map("owners")
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+//  Tenant — the gym / business entity
+// ─────────────────────────────────────────────
+model Tenant {
+  id                   Int      @id @default(autoincrement())
+  name                 String
+  subdomain            String?  @unique
+  address              String?
+  phone                String?
+  taxRate              Float    @default(0)
+  currencySymbol       String   @default("$")
+  checkInWindowMinutes Int      @default(5)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  users             User[]
+  plans             Plan[]
+  paymentMethods    PaymentMethod[]
+  expenseCategories ExpenseCategory[]
+  members           Member[]
+  attendance        Attendance[]
+  payments          Payment[]
+  expenses          Expense[]
+  staff             Staff[]
+
+  @@map("tenants")
 }
 
 // ─────────────────────────────────────────────
@@ -26,32 +60,70 @@ model Owner {
 // ─────────────────────────────────────────────
 model Plan {
   id           Int      @id @default(autoincrement())
+  tenantId     Int
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name         String
   durationDays Int
   fee          Float
+  isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   members      Member[]
 
+  @@index([tenantId])
   @@map("plans")
+}
+
+// ─────────────────────────────────────────────
+//  PaymentMethod — configurable per tenant
+// ─────────────────────────────────────────────
+model PaymentMethod {
+  id       Int      @id @default(autoincrement())
+  tenantId Int
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name     String
+  isActive Boolean  @default(true)
+  payments Payment[]
+
+  @@index([tenantId])
+  @@map("payment_methods")
+}
+
+// ─────────────────────────────────────────────
+//  ExpenseCategory — configurable per tenant
+// ─────────────────────────────────────────────
+model ExpenseCategory {
+  id       Int       @id @default(autoincrement())
+  tenantId Int
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name     String
+  expenses Expense[]
+
+  @@index([tenantId])
+  @@map("expense_categories")
 }
 
 // ─────────────────────────────────────────────
 //  Member — gym member profile
 // ─────────────────────────────────────────────
 model Member {
-  id         Int          @id @default(autoincrement())
-  fullName   String
-  phone      String       @unique
-  email      String?
-  joinDate   DateTime     @default(now())
-  planId     Int
-  plan       Plan         @relation(fields: [planId], references: [id])
-  status     MemberStatus @default(Active)
-  createdAt  DateTime     @default(now())
-  attendance Attendance[]
-  payments   Payment[]
+  id           Int          @id @default(autoincrement())
+  tenantId     Int
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fullName     String
+  phone        String
+  email        String?
+  location     String?
+  joinDate     DateTime     @default(now())
+  planId       Int
+  plan         Plan         @relation(fields: [planId], references: [id])
+  status       MemberStatus @default(Active)
+  passwordHash String?      // set when owner gives the member app login access
+  createdAt    DateTime     @default(now())
+  attendance   Attendance[]
+  payments     Payment[]
 
-  @@index([phone])
+  @@unique([tenantId, phone])   // phone unique per gym, not globally
+  @@index([tenantId])
   @@index([planId])
   @@map("members")
 }
@@ -66,10 +138,13 @@ enum MemberStatus {
 // ─────────────────────────────────────────────
 model Attendance {
   id          Int      @id @default(autoincrement())
+  tenantId    Int
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   memberId    Int
   member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   checkedInAt DateTime @default(now())
 
+  @@index([tenantId])
   @@index([memberId])
   @@index([checkedInAt])
   @@map("attendance")
@@ -80,20 +155,63 @@ model Attendance {
 // ─────────────────────────────────────────────
 model Payment {
   id          Int           @id @default(autoincrement())
+  tenantId    Int
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   memberId    Int
   member      Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
   amount      Float
-  method      PaymentMethod
+  methodId    Int
+  method      PaymentMethod @relation(fields: [methodId], references: [id])
   notes       String?
   paymentDate DateTime      @default(now())
 
+  @@index([tenantId])
   @@index([memberId])
   @@index([paymentDate])
   @@map("payments")
 }
 
-enum PaymentMethod {
-  Cash
-  Card
-  Transfer
+// ─────────────────────────────────────────────
+//  Expense — gym operating expenses
+// ─────────────────────────────────────────────
+model Expense {
+  id          Int             @id @default(autoincrement())
+  tenantId    Int
+  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title       String
+  categoryId  Int
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id])
+  amount      Float
+  expenseDate DateTime        @default(now())
+  notes       String?
+
+  @@index([tenantId])
+  @@index([expenseDate])
+  @@map("expenses")
+}
+
+// ─────────────────────────────────────────────
+//  Staff — sub-users under a tenant
+// ─────────────────────────────────────────────
+enum StaffRole {
+  OWNER
+  RECEPTIONIST
+  TRAINER
+}
+
+model Staff {
+  id           Int       @id @default(autoincrement())
+  tenantId     Int
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fullName     String
+  email        String
+  phone        String?
+  role         StaffRole @default(RECEPTIONIST)
+  notes        String?
+  passwordHash String?   // set when owner gives the staff member login access
+  createdAt    DateTime  @default(now())
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("staff")
 }

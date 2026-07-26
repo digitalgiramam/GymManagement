@@ -2,7 +2,9 @@ package com.gymmanager.ui.payments
 
 import android.os.Bundle
 import android.view.*
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -10,6 +12,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.gymmanager.R
 import com.gymmanager.data.model.CreatePaymentRequest
 import com.gymmanager.data.model.Member
+import com.gymmanager.data.model.PaymentMethod
 import com.gymmanager.databinding.DialogAddPaymentBinding
 import com.gymmanager.databinding.FragmentPaymentsBinding
 import com.gymmanager.gymApp
@@ -32,9 +35,9 @@ class PaymentsFragment : Fragment() {
         })[PaymentsViewModel::class.java]
     }
 
-    private val adapter = PaymentsAdapter()
+    private val adapter by lazy { PaymentsAdapter() }
     private var memberList: List<Member> = emptyList()
-    private val methods = listOf("Cash", "Card", "Transfer")
+    private var methodList: List<PaymentMethod> = emptyList()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -52,6 +55,7 @@ class PaymentsFragment : Fragment() {
         binding.fabAddPayment.setOnClickListener { showAddPaymentDialog() }
 
         viewModel.members.observe(viewLifecycleOwner) { memberList = it }
+        viewModel.paymentMethods.observe(viewLifecycleOwner) { methodList = it }
 
         viewModel.payments.observe(viewLifecycleOwner) { result ->
             binding.swipeRefresh.isRefreshing = false
@@ -86,17 +90,68 @@ class PaymentsFragment : Fragment() {
             binding.root.showSnackbarError("No members found.")
             return
         }
+        if (methodList.isEmpty()) {
+            binding.root.showSnackbarError("No payment methods configured. Check Settings.")
+            return
+        }
 
         val dialogBinding = DialogAddPaymentBinding.inflate(layoutInflater)
 
+        // Member spinner
         val memberNames = memberList.map { "${it.fullName} (${it.phone})" }
         dialogBinding.spinnerMember.adapter = ArrayAdapter(
             requireContext(), android.R.layout.simple_spinner_item, memberNames
         ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
 
+        // Payment method spinner — now loaded from API (methodId FK)
+        val methodNames = methodList.map { it.name }
         dialogBinding.spinnerMethod.adapter = ArrayAdapter(
-            requireContext(), android.R.layout.simple_spinner_item, methods
+            requireContext(), android.R.layout.simple_spinner_item, methodNames
         ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+
+        // Update membership status card when member selection changes
+        fun updateMembershipCard(member: Member) {
+            dialogBinding.tvMemberJoinDate.text = "Joined: ${member.joinDate.toDisplayDate()}"
+            dialogBinding.tvMemberLastPaid.text = if (member.lastPaymentDate != null)
+                "Last paid: ${member.lastPaymentDate.toDisplayDate()}"
+            else
+                "Last paid: never"
+
+            val days = member.daysUntilExpiry
+            dialogBinding.tvMemberExpiry.text = when {
+                days == null -> ""
+                days < 0    -> "Membership expired ${-days} day(s) ago"
+                days == 0   -> "Membership expires today"
+                else        -> "Membership valid for $days more day(s)"
+            }
+            val expiryColor = when {
+                days == null || days > 7 -> R.color.expiry_ok
+                days in 1..7             -> R.color.expiry_warning
+                else                     -> R.color.expiry_expired
+            }
+            dialogBinding.tvMemberExpiry.setTextColor(
+                ContextCompat.getColor(requireContext(), expiryColor)
+            )
+
+            val plan = member.plan
+            dialogBinding.tvMemberPlanFee.text = if (plan != null)
+                "Plan: ${plan.name}  •  Fee: ${"%.2f".format(plan.fee)}  •  ${plan.durationDays} days"
+            else ""
+        }
+
+        updateMembershipCard(memberList[0])
+
+        dialogBinding.spinnerMember.onItemSelectedListener =
+            object : AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                    updateMembershipCard(memberList[pos])
+                    val fee = memberList[pos].plan?.fee
+                    if (fee != null && dialogBinding.etAmount.text.isNullOrBlank()) {
+                        dialogBinding.etAmount.setText("%.2f".format(fee))
+                    }
+                }
+                override fun onNothingSelected(p: AdapterView<*>?) = Unit
+            }
 
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.title_add_payment)
@@ -110,21 +165,28 @@ class PaymentsFragment : Fragment() {
                 }
 
                 val member = memberList[dialogBinding.spinnerMember.selectedItemPosition]
-                val method = methods[dialogBinding.spinnerMethod.selectedItemPosition]
+                // Use methodId (FK) instead of method String
+                val method = methodList[dialogBinding.spinnerMethod.selectedItemPosition]
                 val notes  = dialogBinding.etNotes.text?.toString()?.trim()
 
                 viewModel.addPayment(
                     CreatePaymentRequest(
-                        memberId = member.id,
-                        amount   = amount,
-                        method   = method,
-                        notes    = notes?.ifBlank { null },
-                        paymentDate = null, // defaults to now
+                        memberId    = member.id,
+                        amount      = amount,
+                        methodId    = method.id,   // FK to PaymentMethod table
+                        notes       = notes?.ifBlank { null },
+                        paymentDate = null,        // defaults to now on backend
                     )
                 )
             }
             .setNegativeButton(R.string.action_cancel, null)
             .show()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.loadPayments()
+        viewModel.loadPaymentMethods()
     }
 
     override fun onDestroyView() {

@@ -7,29 +7,49 @@
     <string name="nav_members">Members</string>
     <string name="nav_attendance">Attendance</string>
     <string name="nav_payments">Payments</string>
+    <string name="nav_more">More</string>
 
     <!-- Login -->
-    <string name="hint_username">Username</string>
-    <string name="hint_password">Password</string>
-    <string name="btn_login">Login</string>
     <string name="label_login_title">Gym Manager</string>
-    <string name="label_login_subtitle">Sign in to continue</string>
+    <string name="hint_email_address">Email</string>
+    <string name="hint_password">Password</string>
+    <string name="hint_full_name_login">Full Name</string>
+    <string name="btn_sign_in">Sign In</string>
+    <string name="btn_create_account">Create Account</string>
+    <string name="label_no_account">Don\'t have an account? Register</string>
+    <string name="label_have_account">Already have an account? Sign in</string>
+
+    <!-- Onboarding -->
+    <string name="title_setup_gym">Set Up Your Gym</string>
+    <string name="hint_gym_name">Gym Name *</string>
+    <string name="hint_address">Address (optional)</string>
+    <string name="hint_phone">Phone Number</string>
+    <string name="hint_currency_symbol">Currency Symbol</string>
+    <string name="btn_create_gym">Create Gym</string>
 
     <!-- Dashboard -->
     <string name="label_active_members">Active Members</string>
     <string name="label_inactive_members">Inactive</string>
     <string name="label_todays_checkins">Today\'s Check-ins: %d</string>
     <string name="label_monthly_revenue">Monthly Revenue</string>
+    <string name="label_monthly_expenses">Monthly Expenses</string>
+    <string name="label_net_profit">Net Profit</string>
     <string name="label_recent_activity">Recent Activity</string>
     <string name="label_check_in">Check-in</string>
     <string name="label_payment_method">Payment · %s</string>
 
     <!-- Members -->
     <string name="title_add_member">Add Member</string>
+    <string name="title_edit_member">Edit Member</string>
     <string name="title_delete_member">Delete Member</string>
     <string name="hint_full_name">Full Name</string>
-    <string name="hint_phone">Phone Number</string>
     <string name="hint_email">Email (optional)</string>
+    <string name="hint_location">Location (optional)</string>
+    <string name="hint_join_date">Join Date</string>
+    <string name="hint_amount">Amount</string>
+    <string name="hint_notes">Notes (optional)</string>
+    <string name="action_edit">Edit</string>
+    <string name="msg_member_updated">Member updated successfully!</string>
     <string name="label_select_plan">Select Plan</string>
     <string name="label_active_switch">Active</string>
     <string name="msg_delete_member_confirm">Delete %s? This will also remove their attendance and payment records.</string>
@@ -49,10 +69,22 @@
 
     <!-- Payments -->
     <string name="title_add_payment">Add Payment</string>
-    <string name="hint_amount">Amount</string>
-    <string name="hint_notes">Notes (optional)</string>
     <string name="msg_payment_added">Payment recorded!</string>
     <string name="label_no_payments">No payments recorded yet.</string>
+
+    <!-- Expenses -->
+    <string name="title_add_expense">Add Expense</string>
+    <string name="label_no_expenses">No expenses recorded yet.\nTap + to add one.</string>
+
+    <!-- Staff -->
+    <string name="title_add_staff">Add Staff Member</string>
+    <string name="label_no_staff">No staff members added yet.\nTap + to add one.</string>
+
+    <!-- Settings -->
+    <string name="title_settings">Gym Settings</string>
+    <string name="hint_check_in_window">Check-in Window (minutes)</string>
+    <string name="hint_tax_rate">Tax Rate (%)</string>
+    <string name="btn_save_settings">Save Settings</string>
 
     <!-- Common actions -->
     <string name="action_save">Save</string>

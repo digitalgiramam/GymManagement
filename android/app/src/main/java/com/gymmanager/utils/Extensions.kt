@@ -2,7 +2,6 @@ package com.gymmanager.utils
 
 import android.view.View
 import com.google.android.material.snackbar.Snackbar
-import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -26,7 +25,7 @@ fun View.showSnackbarError(message: String) {
 
 private val dateFormat    = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
 private val dateTimeFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
-private val currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault())
+
 
 fun String.toDisplayDate(): String = runCatching {
     val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
@@ -38,4 +37,6 @@ fun String.toDisplayDateTime(): String = runCatching {
     dateTimeFormat.format(iso.parse(this) ?: Date())
 }.getOrDefault(this)
 
-fun Double.toCurrencyString(): String = currencyFormat.format(this)
+/** Format a Double as a currency string using the tenant's symbol (e.g. "₹1,234.50"). */
+fun Double.toCurrencyString(symbol: String = "$"): String =
+    "$symbol${"%.2f".format(this)}"

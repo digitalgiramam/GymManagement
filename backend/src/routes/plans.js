@@ -1,9 +1,11 @@
 /**
- * Plans routes
+ * Plans routes (multi-tenant)
  * GET    /api/plans
  * POST   /api/plans
  * PUT    /api/plans/:id
  * DELETE /api/plans/:id
+ *
+ * All queries scoped to req.user.tenantId
  */
 
 const express = require('express');
@@ -13,19 +15,21 @@ const { PrismaClient } = require('@prisma/client');
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// ── Zod schemas ────────────────────────────────────────────────────────────
 const planSchema = z.object({
   name:         z.string().min(1, 'Name is required').max(100),
   durationDays: z.number().int().positive('Duration must be a positive integer'),
   fee:          z.number().positive('Fee must be positive'),
+  isActive:     z.boolean().optional(),
 });
 
 const planUpdateSchema = planSchema.partial();
 
 // ── GET /api/plans ─────────────────────────────────────────────────────────
-router.get('/', async (_req, res) => {
+router.get('/', async (req, res) => {
+  const tenantId = req.user.tenantId;
   try {
     const plans = await prisma.plan.findMany({
+      where:   { tenantId },
       orderBy: { durationDays: 'asc' },
       include: { _count: { select: { members: true } } },
     });
@@ -38,13 +42,14 @@ router.get('/', async (_req, res) => {
 
 // ── POST /api/plans ────────────────────────────────────────────────────────
 router.post('/', async (req, res) => {
-  const result = planSchema.safeParse(req.body);
+  const tenantId = req.user.tenantId;
+  const result   = planSchema.safeParse(req.body);
   if (!result.success) {
     return res.status(400).json({ error: result.error.errors[0].message });
   }
 
   try {
-    const plan = await prisma.plan.create({ data: result.data });
+    const plan = await prisma.plan.create({ data: { ...result.data, tenantId } });
     return res.status(201).json(plan);
   } catch (err) {
     console.error('[plans/POST]', err);
@@ -54,7 +59,8 @@ router.post('/', async (req, res) => {
 
 // ── PUT /api/plans/:id ─────────────────────────────────────────────────────
 router.put('/:id', async (req, res) => {
-  const id = parseInt(req.params.id, 10);
+  const tenantId = req.user.tenantId;
+  const id       = parseInt(req.params.id, 10);
   if (isNaN(id)) return res.status(400).json({ error: 'Invalid plan ID.' });
 
   const result = planUpdateSchema.safeParse(req.body);
@@ -63,13 +69,11 @@ router.put('/:id', async (req, res) => {
   }
 
   try {
-    const plan = await prisma.plan.update({
-      where: { id },
-      data:  result.data,
-    });
+    const update = await prisma.plan.updateMany({ where: { id, tenantId }, data: result.data });
+    if (update.count === 0) return res.status(404).json({ error: 'Plan not found.' });
+    const plan = await prisma.plan.findFirst({ where: { id, tenantId } });
     return res.json(plan);
   } catch (err) {
-    if (err.code === 'P2025') return res.status(404).json({ error: 'Plan not found.' });
     console.error('[plans/PUT]', err);
     return res.status(500).json({ error: 'Failed to update plan.' });
   }
@@ -77,14 +81,15 @@ router.put('/:id', async (req, res) => {
 
 // ── DELETE /api/plans/:id ──────────────────────────────────────────────────
 router.delete('/:id', async (req, res) => {
-  const id = parseInt(req.params.id, 10);
+  const tenantId = req.user.tenantId;
+  const id       = parseInt(req.params.id, 10);
   if (isNaN(id)) return res.status(400).json({ error: 'Invalid plan ID.' });
 
   try {
-    await prisma.plan.delete({ where: { id } });
+    const result = await prisma.plan.deleteMany({ where: { id, tenantId } });
+    if (result.count === 0) return res.status(404).json({ error: 'Plan not found.' });
     return res.status(204).send();
   } catch (err) {
-    if (err.code === 'P2025') return res.status(404).json({ error: 'Plan not found.' });
     if (err.code === 'P2003') {
       return res.status(409).json({ error: 'Cannot delete a plan that has active members.' });
     }

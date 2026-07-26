@@ -4,6 +4,9 @@ backend/.env
 backend/prisma/migrations/
 
 # ── Android ──────────────────────────────────────────────
+android/app/google-services.json
+android/app/gym-release.jks
+android/app/*.keystore
 android/.gradle/
 android/build/
 android/app/build/

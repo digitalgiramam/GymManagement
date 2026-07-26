@@ -1,0 +1,43 @@
+{
+  "__PLACEHOLDER__": true,
+  "__instructions__": [
+    "This file is a placeholder. Replace it with the real google-services.json from Firebase.",
+    "Steps:",
+    "1. Go to https://console.firebase.google.com",
+    "2. Open your project -> Project settings -> Your apps",
+    "3. Download google-services.json for the Android app (package: com.gymmanager)",
+    "4. Replace this file with the downloaded one"
+  ],
+  "project_info": {
+    "project_number": "REPLACE_ME",
+    "project_id": "REPLACE_ME",
+    "storage_bucket": "REPLACE_ME.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "REPLACE_ME",
+        "android_client_info": {
+          "package_name": "com.gymmanager"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "REPLACE_ME.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "REPLACE_ME"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

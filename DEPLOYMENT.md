@@ -1,44 +1,63 @@
-# Gym Management System — Deployment Guide
+# Gym Management SaaS — Deployment Guide
 
 ---
 
-## Part 1 — Set Up Neon Database
+## Part 1 — Firebase & Google Sign-In Setup
 
-### 1. Create a Neon project
-1. Go to [https://neon.tech](https://neon.tech) and sign up (free tier available).
-2. Click **New Project** → give it a name (e.g. `gym-management`).
-3. Choose a region closest to your users.
-4. Click **Create Project**.
+### 1.1 Create a Firebase Project
+1. Go to https://console.firebase.google.com → **Add project**
+2. Name it (e.g. `gym-management`) → Continue through the wizard
 
-### 2. Get the connection string
-1. In the Neon dashboard, open your project.
-2. Click **Connection Details** (or the **Connect** button).
-3. Select **Connection string** format and copy it — it looks like:
+### 1.2 Add your Android App
+1. **Project settings** (gear icon) → **Your apps** → ➕ Add app → **Android**
+2. **Android package name**: `com.gymmanager` (must match `applicationId` in `app/build.gradle`)
+3. **App nickname**: Gym Management
+4. **Debug signing certificate SHA-1** — run this from your project root:
+   ```bash
+   cd android && ./gradlew signingReport
    ```
-   postgresql://alex:password@ep-cool-surf-12345.us-east-2.aws.neon.tech/gymdb?sslmode=require
-   ```
-4. Save this string — you will use it as `DATABASE_URL` in the next steps.
+   Copy the `SHA1` from the **debug** variant and paste it in Firebase.
+5. Click **Register app** → **Download `google-services.json`**
+6. Place it at: `android/app/google-services.json`
+
+> ⚠️ Add `android/app/google-services.json` to `.gitignore` — never commit it.
+
+### 1.3 Enable Google Sign-In
+1. Firebase console → **Authentication** → **Sign-in method** tab
+2. Click **Google** → toggle **Enable** → set a support email → **Save**
+
+### 1.4 Get the Web Client ID (for backend token verification)
+1. Go to https://console.cloud.google.com → **APIs & Services** → **Credentials**
+2. Find the OAuth 2.0 Client named **"Web client (auto created by Google Service)"**
+3. Copy its **Client ID** — this is your `GOOGLE_CLIENT_ID` env var
+
+### 1.5 Add release SHA-1 before publishing
+When you generate a release keystore, add its SHA-1 to Firebase too:
+- Firebase console → Project settings → Your apps → Add fingerprint
 
 ---
 
-## Part 2 — Deploy the Backend API to Vercel
+## Part 2 — Neon PostgreSQL Setup
 
-### Prerequisites
-```bash
-npm install -g vercel          # Install Vercel CLI
-vercel login                   # Authenticate with your account
-```
+1. Sign up at https://neon.tech → **New Project** (free tier available)
+2. Choose a region near your Vercel deployment
+3. Copy the **Connection string**:
+   ```
+   postgresql://user:password@ep-xxxx.us-east-2.aws.neon.tech/gymdb?sslmode=require
+   ```
+4. This is your `DATABASE_URL`
 
-### 2.1 Clone / enter the backend directory
-```bash
-cd gym-backend
-```
+---
 
-### 2.2 Install dependencies and generate the Prisma client
+## Part 3 — Backend: Run Migrations & Deploy to Vercel
+
+### 3.1 Install & migrate locally (test connection)
 ```bash
+cd backend
 npm install
-cp .env.example .env           # Create local .env
-# Edit .env and fill in DATABASE_URL and JWT_SECRET
+# Create .env with DATABASE_URL and JWT_SECRET
+npx prisma migrate dev --name init   # applies schema, creates tables
+npx prisma generate                  # generates Prisma Client
 ```
 
 Generate a strong JWT secret:
@@ -46,132 +65,139 @@ Generate a strong JWT secret:
 node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 ```
 
-### 2.3 Run database migrations locally (test connection first)
+### 3.2 Deploy to Vercel
 ```bash
-npx prisma migrate dev --name init
-node src/seed.js               # Creates default owner: admin / password123
-```
-
-### 2.4 Deploy to Vercel
-```bash
+npm install -g vercel
+vercel login
 vercel --prod
 ```
 
-When prompted:
-- **Link to existing project?** → No (first deploy)
-- **Project name** → `gym-management-api`
-- **Directory** → `./` (current)
-- **Override settings?** → No
+When prompted: no existing project, name it `gym-management-api`, root dir `./`.
 
-### 2.5 Set environment variables in the Vercel dashboard
-1. Go to [https://vercel.com/dashboard](https://vercel.com/dashboard).
-2. Open your `gym-management-api` project → **Settings** → **Environment Variables**.
-3. Add:
+### 3.3 Set environment variables in Vercel dashboard
+Project → **Settings** → **Environment Variables** → add:
 
-   | Name            | Value                                              | Environment       |
-   |-----------------|----------------------------------------------------|--------------------|
-   | `DATABASE_URL`  | `postgresql://...` (your Neon connection string)   | Production         |
-   | `JWT_SECRET`    | (the long random hex string you generated)         | Production         |
+| Variable | Value | Notes |
+|---|---|---|
+| `DATABASE_URL` | `postgresql://...` | Neon connection string |
+| `JWT_SECRET` | 64-char random hex | `openssl rand -hex 32` |
+| `GOOGLE_CLIENT_ID` | `xxx.apps.googleusercontent.com` | Web Client ID from step 1.4 |
+| `NODE_ENV` | `production` | |
 
-4. Redeploy: `vercel --prod`
+Then redeploy: `vercel --prod`
 
-### 2.6 Run migrations on production
-The `package.json` build script handles this automatically on each Vercel deployment:
-```json
-"build": "npx prisma generate && npx prisma migrate deploy"
-```
-
-Vercel runs this before starting the function. If you need to seed production:
-```bash
-DATABASE_URL="<production-url>" node src/seed.js
-```
-
-### 2.7 Verify deployment
+### 3.4 Verify backend
 ```bash
 curl https://your-api.vercel.app/api/health
-# → {"status":"ok","ts":"2026-..."}
+# → {"status":"ok"}
 
-curl -X POST https://your-api.vercel.app/api/auth/login \
+curl -X POST https://your-api.vercel.app/api/auth/google \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"password123"}'
-# → {"token":"eyJ...","username":"admin"}
+  -d '{"idToken":"<a valid Firebase idToken>"}'
+# → {"token":"eyJ...","user":{"id":1,"tenantId":null,...}}
 ```
 
 ---
 
-## Part 3 — Configure the Android App
+## Part 4 — Android App Configuration
 
-### 3.1 Switch BASE_URL for production
-Open `android/app/build.gradle`. You will find two `buildConfigField` lines:
-
+### 4.1 Update BASE_URL
+In `android/app/build.gradle`:
 ```groovy
-defaultConfig {
-    // LOCAL DEV (emulator → host machine)
-    buildConfigField "String", "BASE_URL", "\"http://10.0.2.2:3000/api/\""
-}
-
 buildTypes {
+    debug {
+        buildConfigField "String", "BASE_URL", '"http://10.0.2.2:3000/api/"'
+    }
     release {
-        // PRODUCTION — replace with your actual Vercel URL
-        buildConfigField "String", "BASE_URL", "\"https://your-api.vercel.app/api/\""
+        buildConfigField "String", "BASE_URL", '"https://your-api.vercel.app/api/"'
+        minifyEnabled true
+        proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
     }
 }
 ```
 
-**Replace** `your-api.vercel.app` with your actual Vercel deployment URL (shown after `vercel --prod` finishes, e.g. `gym-management-api.vercel.app`).
+Replace `your-api.vercel.app` with your actual Vercel URL.
 
-Debug builds (`./gradlew assembleDebug`) point to the emulator host.
-Release builds (`./gradlew assembleRelease`) point to Vercel.
-
-### 3.2 Local development with the Android emulator
-
-#### Start the backend locally
+### 4.2 Local development (emulator)
 ```bash
-cd gym-backend
-npm run dev              # Starts on http://localhost:3000
+cd backend && npm run dev    # starts on localhost:3000
 ```
+The emulator reaches host machine `localhost` via `10.0.2.2`. Press **Run ▶** in Android Studio.
 
-#### Run on the Android emulator
-- In Android Studio, launch any AVD (e.g. Pixel 7 API 34).
-- The special IP `10.0.2.2` inside the emulator routes to your host machine's `localhost`.
-- The `defaultConfig` already sets `BASE_URL` to `http://10.0.2.2:3000/api/`.
-- The `network_security_config.xml` already permits cleartext to `10.0.2.2`.
+### 4.3 Release signing
+1. Generate keystore (one-time):
+   ```bash
+   keytool -genkey -v -keystore android/app/gym-release.jks -alias gym -keyalg RSA -keysize 2048 -validity 10000
+   ```
+2. Add to `app/build.gradle` signingConfigs:
+   ```groovy
+   signingConfigs {
+       release {
+           storeFile file('gym-release.jks')
+           storePassword System.getenv("KEYSTORE_PASSWORD")
+           keyAlias 'gym'
+           keyPassword System.getenv("KEY_PASSWORD")
+       }
+   }
+   ```
+3. Add release SHA-1 to Firebase console (step 1.5)
 
-Just press **Run ▶** in Android Studio — the app connects to your local backend.
-
-#### Run on a physical device (USB debugging)
-1. Find your machine's local IP: `ipconfig` (Windows) / `ifconfig` (Mac/Linux).
-2. Temporarily change `BASE_URL` in `defaultConfig` to `http://192.168.x.x:3000/api/`.
-3. Make sure your phone and computer are on the same WiFi network.
+### 4.4 Build
+```bash
+cd android
+./gradlew bundleRelease    # Play Store (.aab)
+./gradlew assembleRelease  # Sideload (.apk)
+```
 
 ---
 
-## Part 4 — Changing the Admin Password
+## Part 5 — First-Run Flow (New Gym Owner)
 
-After first login, change the default password by running this script once:
+1. User taps **Continue with Google** → Firebase validates → app sends `idToken` to backend
+2. Backend upserts User (tenantId=null) → returns JWT
+3. App detects `!hasCompletedOnboarding()` → opens **OnboardingActivity**
+4. User fills gym name → `POST /api/onboarding/create-gym`
+5. Backend creates Tenant + seeds default Plans/PaymentMethods/ExpenseCategories
+6. Returns new JWT with tenantId → app stores it → opens **MainActivity**
 
-```bash
-# Run from the backend directory with DATABASE_URL set in .env
-node -e "
-const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcryptjs');
-const prisma = new PrismaClient();
-bcrypt.hash('YOUR_NEW_PASSWORD', 12).then(hash =>
-  prisma.owner.update({ where: { username: 'admin' }, data: { passwordHash: hash } })
-).then(() => { console.log('Password updated'); prisma.\$disconnect(); });
-"
+---
+
+## Part 6 — Files to Add to `.gitignore`
+
+```
+backend/.env
+android/app/google-services.json
+android/app/gym-release.jks
 ```
 
 ---
 
 ## Summary
 
-| Step | Command / Action                                |
-|------|-------------------------------------------------|
-| 1    | Create Neon project, copy connection string     |
-| 2    | `npm install && npx prisma migrate dev`         |
-| 3    | `node src/seed.js` (creates admin account)      |
-| 4    | Add `DATABASE_URL` + `JWT_SECRET` to Vercel env |
-| 5    | `vercel --prod`                                 |
-| 6    | Update `BASE_URL` in `app/build.gradle`         |
-| 7    | Build APK: `./gradlew assembleRelease`          |
+| Step | Action |
+|------|--------|
+| 1 | Firebase project → add Android app → download `google-services.json` |
+| 2 | Enable Google Sign-In in Firebase Authentication |
+| 3 | Get Web Client ID from Google Cloud Console (`GOOGLE_CLIENT_ID`) |
+| 4 | Create Neon database → copy `DATABASE_URL` |
+| 5 | `cd backend && npm install && npx prisma migrate dev` |
+| 6 | Set env vars in Vercel → `vercel --prod` |
+| 7 | Place `google-services.json` in `android/app/` |
+| 8 | Update `BASE_URL` in `app/build.gradle` to Vercel URL |
+| 9 | `./gradlew bundleRelease` |
+| 10 | Add release SHA-1 fingerprint to Firebase |
+
+---
+
+## Production Checklist
+
+- [ ] `google-services.json` placed in `android/app/` and gitignored
+- [ ] Release SHA-1 added to Firebase console
+- [ ] `GOOGLE_CLIENT_ID` matches the Web client ID exactly
+- [ ] `JWT_SECRET` is a random 64-char string
+- [ ] Prisma migrations applied on production Neon DB
+- [ ] `BASE_URL` in Android points to production Vercel URL
+- [ ] `minifyEnabled true` enabled for release builds
+- [ ] Google Sign-In tested end-to-end on physical device
+- [ ] Onboarding flow tested with fresh Google account
+- [ ] Two separate gym accounts cannot see each other's data (tenant isolation check)

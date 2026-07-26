@@ -7,6 +7,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.gymmanager.R
 import com.gymmanager.databinding.ItemRecentActivityBinding
+import com.gymmanager.gymApp
 import com.gymmanager.utils.toDisplayDateTime
 import com.gymmanager.utils.toCurrencyString
 
@@ -34,6 +35,8 @@ class RecentActivityAdapter :
         RecyclerView.ViewHolder(b.root) {
 
         fun bind(item: ActivityItem) {
+            // Read symbol fresh on every bind so DiffUtil-skipped rows still get the right value.
+            val symbol = b.root.context.gymApp.tokenManager.getCurrencySymbol()
             when (item) {
                 is ActivityItem.CheckIn -> {
                     b.ivIcon.setImageResource(R.drawable.ic_checkin)
@@ -46,7 +49,7 @@ class RecentActivityAdapter :
                     b.tvTitle.text = item.memberName
                     b.tvSubtitle.text = b.root.context.getString(
                         R.string.label_payment_method, item.method)
-                    b.tvDetail.text = item.amount.toCurrencyString()
+                    b.tvDetail.text = item.amount.toCurrencyString(symbol)
                 }
             }
         }

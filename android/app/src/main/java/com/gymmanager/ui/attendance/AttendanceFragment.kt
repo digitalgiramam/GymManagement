@@ -113,6 +113,11 @@ class AttendanceFragment : Fragment() {
             .show()
     }
 
+    override fun onResume() {
+        super.onResume()
+        viewModel.loadAttendance()
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null

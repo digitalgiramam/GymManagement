@@ -1,11 +1,16 @@
 package com.gymmanager.data.repository
 
 import com.gymmanager.data.api.ApiService
-import com.gymmanager.data.model.CreatePaymentRequest
-import com.gymmanager.data.model.Payment
+import com.gymmanager.data.model.*
 import com.gymmanager.utils.NetworkResult
 
 class PaymentRepository(private val api: ApiService) : BaseRepository() {
+
+    suspend fun getPaymentMethods(): NetworkResult<List<PaymentMethod>> =
+        safeApiCall { api.getPaymentMethods() }
+
+    suspend fun createPaymentMethod(name: String): NetworkResult<PaymentMethod> =
+        safeApiCall { api.createPaymentMethod(CreatePaymentMethodRequest(name)) }
 
     suspend fun getPayments(
         memberId: Int? = null,

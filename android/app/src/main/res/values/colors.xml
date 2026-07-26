@@ -12,6 +12,11 @@
     <color name="status_active">#2E7D32</color>
     <color name="status_inactive">#C62828</color>
 
+    <!-- Membership expiry -->
+    <color name="expiry_ok">#2E7D32</color>
+    <color name="expiry_warning">#E65100</color>
+    <color name="expiry_expired">#C62828</color>
+
     <!-- Text -->
     <color name="text_primary">#212121</color>
     <color name="text_secondary">#757575</color>
@@ -21,4 +26,13 @@
     <color name="card_inactive">#FFEBEE</color>
     <color name="card_checkin">#E8F5E9</color>
     <color name="card_revenue">#FFF8E1</color>
+
+    <!-- General -->
+    <color name="black">#000000</color>
+    <color name="error">#B00020</color>
+
+    <!-- Semantic aliases used in staff/member portal layouts -->
+    <color name="background">#F5F7FA</color>
+    <color name="on_surface">#212121</color>
+    <color name="on_surface_secondary">#757575</color>
 </resources>

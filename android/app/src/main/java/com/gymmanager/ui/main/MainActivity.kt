@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
@@ -14,6 +15,8 @@ import com.gymmanager.R
 import com.gymmanager.databinding.ActivityMainBinding
 import com.gymmanager.gymApp
 import com.gymmanager.ui.auth.LoginActivity
+import com.gymmanager.utils.NetworkResult
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
@@ -27,19 +30,32 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
 
-        // Navigation setup
         val navHostFragment = supportFragmentManager
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         navController = navHostFragment.navController
 
-        // Top-level destinations (no Up button shown)
+        // All bottom-nav destinations are top-level (no Up arrow)
         appBarConfig = AppBarConfiguration(
-            setOf(R.id.dashboardFragment, R.id.membersFragment,
-                  R.id.attendanceFragment, R.id.paymentsFragment)
+            setOf(
+                R.id.dashboardFragment,
+                R.id.membersFragment,
+                R.id.attendanceFragment,
+                R.id.paymentsFragment,
+                R.id.masterFragment,
+            )
         )
 
         setupActionBarWithNavController(navController, appBarConfig)
         binding.bottomNavigation.setupWithNavController(navController)
+
+        // Eagerly fetch settings so the currency symbol is always up-to-date
+        // (even for users who have never opened the Settings page in this session).
+        lifecycleScope.launch {
+            val result = gymApp.settingsRepository.getSettings()
+            if (result is NetworkResult.Success) {
+                gymApp.tokenManager.saveCurrencySymbol(result.data.currencySymbol)
+            }
+        }
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
