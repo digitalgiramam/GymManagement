@@ -1,15 +1,12 @@
 /**
  * Settings routes (multi-tenant)
- * GET   /api/settings  — get current tenant settings
- * PUT   /api/settings  — update tenant settings
- *
- * Editable fields: name, address, phone, currencySymbol, checkInWindowMinutes, taxRate
- * All queries scoped to req.user.tenantId
+ * GET /api/settings
+ * PUT /api/settings
  */
 
-const express = require('express');
-const { z }   = require('zod');
-const prisma = require('../lib/prisma');
+const express   = require('express');
+const { z }     = require('zod');
+const { query } = require('../lib/db');
 
 const router = express.Router();
 
@@ -26,16 +23,13 @@ const settingsSchema = z.object({
 router.get('/', async (req, res) => {
   const tenantId = req.user.tenantId;
   try {
-    const tenant = await prisma.tenant.findUnique({
-      where:  { id: tenantId },
-      select: {
-        id: true, name: true, address: true, phone: true,
-        currencySymbol: true, checkInWindowMinutes: true, taxRate: true,
-        createdAt: true,
-      },
-    });
-    if (!tenant) return res.status(404).json({ error: 'Tenant not found.' });
-    return res.json(tenant);
+    const { rows } = await query(
+      `SELECT id, name, address, phone, "currencySymbol", "checkInWindowMinutes", "taxRate", "createdAt"
+       FROM tenants WHERE id = $1`,
+      [tenantId],
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Tenant not found.' });
+    return res.json(rows[0]);
   } catch (err) {
     console.error('[settings/GET]', err);
     return res.status(500).json({ error: 'Failed to fetch settings.' });
@@ -46,23 +40,31 @@ router.get('/', async (req, res) => {
 router.put('/', async (req, res) => {
   const tenantId = req.user.tenantId;
   const result   = settingsSchema.safeParse(req.body);
-  if (!result.success) {
-    return res.status(400).json({ error: result.error.errors[0].message });
-  }
+  if (!result.success) return res.status(400).json({ error: result.error.errors[0].message });
+
+  const data = result.data;
+  const sets = [`"updatedAt" = NOW()`];
+  const vals = [];
+  let p = 1;
+
+  if (data.name                 !== undefined) { sets.push(`name = $${p++}`);                       vals.push(data.name); }
+  if (data.address              !== undefined) { sets.push(`address = $${p++}`);                    vals.push(data.address); }
+  if (data.phone                !== undefined) { sets.push(`phone = $${p++}`);                      vals.push(data.phone); }
+  if (data.currencySymbol       !== undefined) { sets.push(`"currencySymbol" = $${p++}`);           vals.push(data.currencySymbol); }
+  if (data.checkInWindowMinutes !== undefined) { sets.push(`"checkInWindowMinutes" = $${p++}`);     vals.push(data.checkInWindowMinutes); }
+  if (data.taxRate              !== undefined) { sets.push(`"taxRate" = $${p++}`);                  vals.push(data.taxRate); }
+
+  vals.push(tenantId);
 
   try {
-    const tenant = await prisma.tenant.update({
-      where: { id: tenantId },
-      data:  result.data,
-      select: {
-        id: true, name: true, address: true, phone: true,
-        currencySymbol: true, checkInWindowMinutes: true, taxRate: true,
-        updatedAt: true,
-      },
-    });
-    return res.json(tenant);
+    const { rows } = await query(
+      `UPDATE tenants SET ${sets.join(', ')} WHERE id = $${p}
+       RETURNING id, name, address, phone, "currencySymbol", "checkInWindowMinutes", "taxRate", "updatedAt"`,
+      vals,
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Tenant not found.' });
+    return res.json(rows[0]);
   } catch (err) {
-    if (err.code === 'P2025') return res.status(404).json({ error: 'Tenant not found.' });
     console.error('[settings/PUT]', err);
     return res.status(500).json({ error: 'Failed to update settings.' });
   }

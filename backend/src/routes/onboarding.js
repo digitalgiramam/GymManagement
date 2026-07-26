@@ -1,23 +1,13 @@
 /**
- * Onboarding route — called once per new gym owner.
- *
- * POST /api/onboarding/create-gym
- *   Headers: Authorization: Bearer <token>  (tenantId may be null)
- *   Body: { gymName: string, address?: string, phone?: string, currencySymbol?: string }
- *   Returns: { token: string, tenant: { id, name, ... } }
- *
- * Side effects:
- *   1. Creates a Tenant row
- *   2. Links the authenticated User to the Tenant (sets user.tenantId)
- *   3. Seeds default Plans, PaymentMethods, and ExpenseCategories for the tenant
- *   4. Issues a new JWT that includes the tenantId
+ * Onboarding route
+ * POST /api/onboarding/create-gym  — create tenant + seed defaults + link user
  */
 
 const express = require('express');
-const jwt = require('jsonwebtoken');
-const { z } = require('zod');
-const prisma = require('../lib/prisma');
-const { authenticateJWT } = require('../middleware/auth');
+const jwt     = require('jsonwebtoken');
+const { z }   = require('zod');
+const { query, transaction } = require('../lib/db');
+const { authenticateJWT }    = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -31,86 +21,62 @@ const createGymSchema = z.object({
 // POST /api/onboarding/create-gym
 router.post('/create-gym', authenticateJWT, async (req, res) => {
   const parsed = createGymSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.errors[0].message });
-  }
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
 
   const { gymName, address, phone, currencySymbol } = parsed.data;
   const userId = req.user.userId;
 
   // Prevent creating a second gym
-  const existingUser = await prisma.user.findUnique({ where: { id: userId } });
-  if (existingUser?.tenantId) {
-    return res.status(409).json({
-      error: 'Your account is already linked to a gym.',
-      code: 'ALREADY_ONBOARDED',
-    });
+  const { rows: userRows } = await query(`SELECT "tenantId" FROM users WHERE id = $1`, [userId]);
+  if (userRows[0]?.tenantId) {
+    return res.status(409).json({ error: 'Your account is already linked to a gym.', code: 'ALREADY_ONBOARDED' });
   }
 
-  // Transaction: create tenant + seed defaults + link user
   let tenant;
   try {
-    tenant = await prisma.$transaction(async (tx) => {
+    tenant = await transaction(async (client) => {
       // 1. Create tenant
-      const newTenant = await tx.tenant.create({
-        data: {
-          name: gymName,
-          address: address ?? null,
-          phone: phone ?? null,
-          currencySymbol,
-        },
-      });
-
-      const tid = newTenant.id;
+      const { rows: [t] } = await client.query(
+        `INSERT INTO tenants (name, address, phone, "currencySymbol", "updatedAt")
+         VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
+        [gymName, address ?? null, phone ?? null, currencySymbol],
+      );
+      const tid = t.id;
 
       // 2. Seed default Plans
-      await tx.plan.createMany({
-        data: [
-          { tenantId: tid, name: 'Monthly',   durationDays: 30,  fee: 1000 },
-          { tenantId: tid, name: 'Quarterly', durationDays: 90,  fee: 2700 },
-          { tenantId: tid, name: 'Annual',    durationDays: 365, fee: 9000 },
-        ],
-      });
+      await client.query(
+        `INSERT INTO plans ("tenantId", name, "durationDays", fee) VALUES
+          ($1, 'Monthly', 30, 1000), ($1, 'Quarterly', 90, 2700), ($1, 'Annual', 365, 9000)`,
+        [tid],
+      );
 
       // 3. Seed default Payment Methods
-      await tx.paymentMethod.createMany({
-        data: [
-          { tenantId: tid, name: 'Cash' },
-          { tenantId: tid, name: 'UPI' },
-          { tenantId: tid, name: 'Card' },
-          { tenantId: tid, name: 'Bank Transfer' },
-        ],
-      });
+      await client.query(
+        `INSERT INTO payment_methods ("tenantId", name) VALUES
+          ($1, 'Cash'), ($1, 'UPI'), ($1, 'Card'), ($1, 'Bank Transfer')`,
+        [tid],
+      );
 
       // 4. Seed default Expense Categories
-      await tx.expenseCategory.createMany({
-        data: [
-          { tenantId: tid, name: 'Rent' },
-          { tenantId: tid, name: 'Utilities' },
-          { tenantId: tid, name: 'Equipment' },
-          { tenantId: tid, name: 'Staff Salaries' },
-          { tenantId: tid, name: 'Marketing' },
-          { tenantId: tid, name: 'Maintenance' },
-          { tenantId: tid, name: 'Other' },
-        ],
-      });
+      await client.query(
+        `INSERT INTO expense_categories ("tenantId", name) VALUES
+          ($1, 'Rent'), ($1, 'Utilities'), ($1, 'Equipment'),
+          ($1, 'Staff Salaries'), ($1, 'Marketing'), ($1, 'Maintenance'), ($1, 'Other')`,
+        [tid],
+      );
 
       // 5. Link user to tenant
-      await tx.user.update({
-        where: { id: userId },
-        data: { tenantId: tid },
-      });
+      await client.query(`UPDATE users SET "tenantId" = $1 WHERE id = $2`, [tid, userId]);
 
-      return newTenant;
+      return t;
     });
   } catch (err) {
-    console.error('[onboarding/create-gym] transaction error:', err);
+    console.error('[onboarding/create-gym]', err);
     return res.status(500).json({ error: 'Failed to create gym. Please try again.' });
   }
 
-  // Issue new JWT with tenantId populated
   const newToken = jwt.sign(
-    { userId, tenantId: tenant.id, email: req.user.email },
+    { userId, tenantId: tenant.id, email: req.user.email, role: 'OWNER' },
     process.env.JWT_SECRET,
     { expiresIn: '30d' },
   );
@@ -118,10 +84,8 @@ router.post('/create-gym', authenticateJWT, async (req, res) => {
   return res.status(201).json({
     token: newToken,
     tenant: {
-      id: tenant.id,
-      name: tenant.name,
-      address: tenant.address,
-      phone: tenant.phone,
+      id: tenant.id, name: tenant.name,
+      address: tenant.address, phone: tenant.phone,
       currencySymbol: tenant.currencySymbol,
     },
   });

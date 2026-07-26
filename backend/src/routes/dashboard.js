@@ -1,86 +1,91 @@
 /**
  * Dashboard route (multi-tenant)
  * GET /api/dashboard/stats
- *
- * Returns:
- *   totalActiveMembers    — count of Active members
- *   totalInactiveMembers  — count of Inactive members
- *   todayCheckIns         — check-ins since midnight today
- *   currentMonthRevenue   — sum of payments in current calendar month
- *   currentMonthExpenses  — sum of expenses in current calendar month
- *   netProfit             — revenue - expenses
- *   last5CheckIns         — 5 most recent attendance records
- *   last5Payments         — 5 most recent payment records
- *   last5Expenses         — 5 most recent expenses
- *
- * All queries scoped to req.user.tenantId
  */
 
-const express = require('express');
-const prisma = require('../lib/prisma');
+const express   = require('express');
+const { query } = require('../lib/db');
 
 const router = express.Router();
 
 router.get('/stats', async (req, res) => {
-  const tenantId   = req.user.tenantId;
-  const now        = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tenantId    = req.user.tenantId;
+  const now         = new Date();
+  const startOfDay  = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
   try {
+    // Run all aggregate queries in parallel
     const [
-      totalActive,
-      totalInactive,
-      todayCheckIns,
-      monthRevenueAgg,
-      monthExpenseAgg,
-      last5CheckIns,
-      last5Payments,
-      last5Expenses,
-    ] = await prisma.$transaction([
-      prisma.member.count({ where: { tenantId, status: 'Active'   } }),
-      prisma.member.count({ where: { tenantId, status: 'Inactive' } }),
-      prisma.attendance.count({
-        where: { tenantId, checkedInAt: { gte: startOfDay } },
-      }),
-      prisma.payment.aggregate({
-        _sum: { amount: true },
-        where: { tenantId, paymentDate: { gte: startOfMonth } },
-      }),
-      prisma.expense.aggregate({
-        _sum: { amount: true },
-        where: { tenantId, expenseDate: { gte: startOfMonth } },
-      }),
-      prisma.attendance.findMany({
-        take:    5,
-        where:   { tenantId },
-        orderBy: { checkedInAt: 'desc' },
-        include: { member: { select: { id: true, fullName: true, phone: true } } },
-      }),
-      prisma.payment.findMany({
-        take:    5,
-        where:   { tenantId },
-        orderBy: { paymentDate: 'desc' },
-        include: {
-          member: { select: { id: true, fullName: true, phone: true } },
-          method: { select: { id: true, name: true } },
-        },
-      }),
-      prisma.expense.findMany({
-        take:    5,
-        where:   { tenantId },
-        orderBy: { expenseDate: 'desc' },
-        include: { category: { select: { id: true, name: true } } },
-      }),
+      activeRes,
+      inactiveRes,
+      todayRes,
+      revenueRes,
+      expenseRes,
+      checkInsRes,
+      paymentsRes,
+      expensesRes,
+    ] = await Promise.all([
+      query(`SELECT COUNT(*)::int AS count FROM members WHERE "tenantId" = $1 AND status = 'Active'`,   [tenantId]),
+      query(`SELECT COUNT(*)::int AS count FROM members WHERE "tenantId" = $1 AND status = 'Inactive'`, [tenantId]),
+      query(`SELECT COUNT(*)::int AS count FROM attendance WHERE "tenantId" = $1 AND "checkedInAt" >= $2`, [tenantId, startOfDay]),
+      query(`SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE "tenantId" = $1 AND "paymentDate" >= $2`, [tenantId, startOfMonth]),
+      query(`SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE "tenantId" = $1 AND "expenseDate" >= $2`,  [tenantId, startOfMonth]),
+      // Last 5 check-ins
+      query(
+        `SELECT a.*, m.id AS "memberId_", m."fullName" AS "memberName_", m.phone AS "memberPhone_"
+         FROM attendance a
+         JOIN members m ON m.id = a."memberId"
+         WHERE a."tenantId" = $1
+         ORDER BY a."checkedInAt" DESC LIMIT 5`,
+        [tenantId],
+      ),
+      // Last 5 payments
+      query(
+        `SELECT p.*,
+                m.id AS "memberId_", m."fullName" AS "memberName_", m.phone AS "memberPhone_",
+                pm.id AS "methodId_", pm.name AS "methodName_"
+         FROM payments p
+         JOIN members m ON m.id = p."memberId"
+         JOIN payment_methods pm ON pm.id = p."methodId"
+         WHERE p."tenantId" = $1
+         ORDER BY p."paymentDate" DESC LIMIT 5`,
+        [tenantId],
+      ),
+      // Last 5 expenses
+      query(
+        `SELECT e.*, ec.id AS "catId_", ec.name AS "catName_"
+         FROM expenses e
+         JOIN expense_categories ec ON ec.id = e."categoryId"
+         WHERE e."tenantId" = $1
+         ORDER BY e."expenseDate" DESC LIMIT 5`,
+        [tenantId],
+      ),
     ]);
 
-    const revenue  = monthRevenueAgg._sum.amount  ?? 0;
-    const expenses = monthExpenseAgg._sum.amount ?? 0;
+    const last5CheckIns = checkInsRes.rows.map(r => {
+      const { memberId_: mid, memberName_: mname, memberPhone_: mphone, ...att } = r;
+      return { ...att, member: { id: mid, fullName: mname, phone: mphone } };
+    });
+
+    const last5Payments = paymentsRes.rows.map(r => {
+      const { memberId_: mmid, memberName_: mmname, memberPhone_: mmphone,
+              methodId_: mtid, methodName_: mtname, ...rest } = r;
+      return { ...rest, member: { id: mmid, fullName: mmname, phone: mmphone }, method: { id: mtid, name: mtname } };
+    });
+
+    const last5Expenses = expensesRes.rows.map(r => {
+      const { catId_: cid, catName_: cname, ...rest } = r;
+      return { ...rest, category: { id: cid, name: cname } };
+    });
+
+    const revenue  = parseFloat(revenueRes.rows[0].total);
+    const expenses = parseFloat(expenseRes.rows[0].total);
 
     return res.json({
-      totalActiveMembers:   totalActive,
-      totalInactiveMembers: totalInactive,
-      todayCheckIns,
+      totalActiveMembers:   activeRes.rows[0].count,
+      totalInactiveMembers: inactiveRes.rows[0].count,
+      todayCheckIns:        todayRes.rows[0].count,
       currentMonthRevenue:  revenue,
       currentMonthExpenses: expenses,
       netProfit:            revenue - expenses,
