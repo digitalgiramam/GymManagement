@@ -1,12 +1,16 @@
 {
   "version": 2,
   "installCommand": "npm install && ./node_modules/.bin/prisma generate --schema=backend/prisma/schema.prisma",
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }],
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api/index" }
+  ],
   "functions": {
     "api/index.js": {
       "maxDuration": 30,
-      "includeFiles": "node_modules/.prisma/**,node_modules/@prisma/engines/**"
+      "includeFiles": "node_modules/.prisma/**,node_modules/@prisma/client/*.wasm,node_modules/@prisma/client/runtime/*.wasm"
     }
   },
-  "env": { "NODE_ENV": "production" }
+  "env": {
+    "NODE_ENV": "production"
+  }
 }
