@@ -1,0 +1,33 @@
+{
+  "name": "gym-saas-api",
+  "version": "2.0.0",
+  "description": "Multi-tenant SaaS Gym Management Platform — Backend API",
+  "main": "api/index.js",
+  "scripts": {
+    "dev": "nodemon api/index.js",
+    "start": "node api/index.js",
+    "build": "./node_modules/.bin/prisma generate",
+    "migrate": "./node_modules/.bin/prisma migrate deploy",
+    "seed": "node prisma/seed.js",
+    "migrate:dev": "./node_modules/.bin/prisma migrate dev",
+    "studio": "./node_modules/.bin/prisma studio"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "5.22.0",
+    "@prisma/client": "5.22.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.3",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9",
+    "prisma": "5.22.0"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}
