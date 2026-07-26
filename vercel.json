@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "cd backend && npm install && ./node_modules/.bin/prisma generate",
+  "installCommand": "cd backend && npm install && ./node_modules/.bin/prisma generate",
   "rewrites": [
     { "source": "/(.*)", "destination": "/api/index" }
   ],
