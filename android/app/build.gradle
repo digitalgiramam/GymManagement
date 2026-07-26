@@ -17,14 +17,15 @@ android {
         // ── BASE_URL ─────────────────────────────────────────────────────────
         // Local dev  → "http://10.0.2.2:3000/api/"   (Android emulator → host)
         // Production → "https://your-api.vercel.app/api/"
-        buildConfigField "String", "BASE_URL", "\"http://10.0.2.2:3000/api/\""
+      //  buildConfigField "String", "BASE_URL", "\"http://10.0.2.2:3000/api/\""
+        buildConfigField "String", "BASE_URL", "\"https://gym-management-eight-flax.vercel.app/api/\""
     }
 
     buildTypes {
         release {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            buildConfigField "String", "BASE_URL", "\"https://your-api.vercel.app/api/\""
+            buildConfigField "String", "BASE_URL", "\"https://gym-management-eight-flax.vercel.app/api/\""
         }
     }
 
