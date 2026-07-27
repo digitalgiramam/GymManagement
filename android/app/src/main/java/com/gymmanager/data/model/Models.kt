@@ -61,9 +61,11 @@ data class TenantSettings(
     val name: String,
     val address: String?,
     val phone: String?,
+    val contactPerson: String?,
     val currencySymbol: String,
     val checkInWindowMinutes: Int,
     val taxRate: Double,
+    val logoBase64: String?,
     val createdAt: String,
 )
 
@@ -71,9 +73,11 @@ data class UpdateSettingsRequest(
     val name: String? = null,
     val address: String? = null,
     val phone: String? = null,
+    val contactPerson: String? = null,
     val currencySymbol: String? = null,
     val checkInWindowMinutes: Int? = null,
     val taxRate: Double? = null,
+    val logoBase64: String? = null,
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
