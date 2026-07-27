@@ -134,8 +134,9 @@ class PaymentsFragment : Fragment() {
             )
 
             val plan = member.plan
+            val sym = requireContext().gymApp.tokenManager.getCurrencySymbol()
             dialogBinding.tvMemberPlanFee.text = if (plan != null)
-                "Plan: ${plan.name}  •  Fee: ${"%.2f".format(plan.fee)}  •  ${plan.durationDays} days"
+                "Plan: ${plan.name}  •  Fee: ${plan.fee.toCurrencyString(sym)}  •  ${plan.durationDays} days"
             else ""
         }
 

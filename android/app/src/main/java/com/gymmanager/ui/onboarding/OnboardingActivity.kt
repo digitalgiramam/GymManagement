@@ -2,6 +2,7 @@ package com.gymmanager.ui.onboarding
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.ArrayAdapter
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModel
@@ -27,28 +28,49 @@ class OnboardingActivity : AppCompatActivity() {
         }
     }
 
+    // Same currency options as SettingsFragment
+    private data class CurrencyOption(val label: String, val symbol: String)
+    private val currencyOptions = listOf(
+        CurrencyOption("₹  Rs  — Indian Rupee",     "₹"),
+        CurrencyOption("AED — UAE Dirham",           "AED"),
+        CurrencyOption("\$  USD — US Dollar",        "$"),
+        CurrencyOption("S\$ SGD — Singapore Dollar", "S$"),
+    )
+    private var selectedCurrencySymbol = "₹"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityOnboardingBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Pre-fill owner name from stored Google profile
+        // Pre-fill owner name from stored profile
         val userName = gymApp.tokenManager.getUserName()
         if (!userName.isNullOrBlank()) {
             binding.tvWelcomeUser.text = "Welcome, $userName!"
         }
 
+        setupCurrencyDropdown()
         setupObservers()
         binding.btnCreateGym.setOnClickListener { submitForm() }
     }
 
-    private fun submitForm() {
-        val gymName        = binding.etGymName.text?.toString() ?: ""
-        val address        = binding.etAddress.text?.toString()
-        val phone          = binding.etPhone.text?.toString()
-        val currencySymbol = binding.etCurrencySymbol.text?.toString()?.trim() ?: "$"
+    private fun setupCurrencyDropdown() {
+        val labels  = currencyOptions.map { it.label }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, labels)
+        binding.actvCurrency.setAdapter(adapter)
+        // Default selection
+        binding.actvCurrency.setText(currencyOptions[0].label, false)
+        binding.actvCurrency.setOnItemClickListener { _, _, position, _ ->
+            selectedCurrencySymbol = currencyOptions[position].symbol
+        }
+    }
 
-        viewModel.createGym(gymName, address, phone, currencySymbol)
+    private fun submitForm() {
+        val gymName = binding.etGymName.text?.toString() ?: ""
+        val address = binding.etAddress.text?.toString()
+        val phone   = binding.etPhone.text?.toString()
+
+        viewModel.createGym(gymName, address, phone, selectedCurrencySymbol)
     }
 
     private fun setupObservers() {

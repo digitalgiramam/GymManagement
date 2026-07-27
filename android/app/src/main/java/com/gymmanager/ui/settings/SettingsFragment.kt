@@ -172,8 +172,12 @@ class SettingsFragment : Fragment() {
         viewModel.saveResult.observe(viewLifecycleOwner) { result ->
             when (result) {
                 is NetworkResult.Success -> {
-                    result.data.currencySymbol.takeIf { it.isNotBlank() }
+                    val data = result.data
+                    data.currencySymbol.takeIf { it.isNotBlank() }
                         ?.let { requireContext().gymApp.tokenManager.saveCurrencySymbol(it) }
+                    // Update cached logo and refresh toolbar
+                    requireContext().gymApp.logoCache.save(requireContext(), data.logoBase64)
+                    (activity as? com.gymmanager.ui.main.MainActivity)?.applyToolbarLogo()
                     Snackbar.make(binding.root, "Settings saved!", Snackbar.LENGTH_SHORT).show()
                 }
                 is NetworkResult.Error ->

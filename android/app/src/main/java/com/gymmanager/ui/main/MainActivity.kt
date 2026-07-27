@@ -1,6 +1,7 @@
 package com.gymmanager.ui.main
 
 import android.content.Intent
+import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
@@ -48,14 +49,19 @@ class MainActivity : AppCompatActivity() {
         setupActionBarWithNavController(navController, appBarConfig)
         binding.bottomNavigation.setupWithNavController(navController)
 
-        // Eagerly fetch settings so the currency symbol is always up-to-date
-        // (even for users who have never opened the Settings page in this session).
+        // Eagerly fetch settings: keep currency + logo always up-to-date.
         lifecycleScope.launch {
             val result = gymApp.settingsRepository.getSettings()
             if (result is NetworkResult.Success) {
-                gymApp.tokenManager.saveCurrencySymbol(result.data.currencySymbol)
+                val data = result.data
+                gymApp.tokenManager.saveCurrencySymbol(data.currencySymbol)
+                // Cache logo to disk, then show in toolbar
+                gymApp.logoCache.save(this@MainActivity, data.logoBase64)
+                applyToolbarLogo()
             }
         }
+        // Also show any already-cached logo immediately (avoids blank toolbar on re-launch)
+        applyToolbarLogo()
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -73,6 +79,15 @@ class MainActivity : AppCompatActivity() {
 
     override fun onSupportNavigateUp(): Boolean =
         navController.navigateUp(appBarConfig) || super.onSupportNavigateUp()
+
+    /** Loads the cached gym logo and sets it as the Toolbar logo (left of title). */
+    fun applyToolbarLogo() {
+        val bmp = gymApp.logoCache.load(this) ?: return
+        // Scale to ~40dp for the toolbar
+        val sizePx = (40 * resources.displayMetrics.density).toInt()
+        val scaled  = android.graphics.Bitmap.createScaledBitmap(bmp, sizePx, sizePx, true)
+        binding.toolbar.logo = BitmapDrawable(resources, scaled)
+    }
 
     private fun logout() {
         gymApp.authRepository.logout()

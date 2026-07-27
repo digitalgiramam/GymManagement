@@ -89,18 +89,20 @@
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/tilCurrency"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="@string/hint_currency_symbol"
-                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:hint="Currency"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                     android:layout_marginBottom="24dp">
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etCurrencySymbol"
+                    <AutoCompleteTextView
+                        android:id="@+id/actvCurrency"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="$"
-                        android:maxLength="3"
-                        android:inputType="text" />
+                        android:inputType="none"
+                        android:focusable="false"
+                        android:focusableInTouchMode="false"
+                        android:text="₹  Rs  — Indian Rupee" />
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <ProgressBar

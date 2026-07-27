@@ -4,6 +4,7 @@ import android.app.Application
 import com.gymmanager.data.api.RetrofitClient
 import com.gymmanager.data.local.TokenManager
 import com.gymmanager.data.repository.*
+import com.gymmanager.utils.LogoCache
 
 /**
  * Application-level singleton that wires together the dependency graph manually.
@@ -12,6 +13,7 @@ import com.gymmanager.data.repository.*
 class GymApp : Application() {
 
     val tokenManager by lazy { TokenManager(this) }
+    val logoCache = LogoCache   // singleton object — no lazy needed
     private val apiService by lazy { RetrofitClient.create(tokenManager) }
 
     val authRepository       by lazy { AuthRepository(apiService, tokenManager) }

@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.gymmanager.data.model.Payment
 import com.gymmanager.databinding.ItemMemberPaymentBinding
 import com.gymmanager.gymApp
+import com.gymmanager.utils.toCurrencyString
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -25,7 +26,7 @@ class MemberPaymentAdapter :
     class VH(private val b: ItemMemberPaymentBinding) : RecyclerView.ViewHolder(b.root) {
         fun bind(p: Payment, inFmt: SimpleDateFormat, outFmt: SimpleDateFormat) {
             val symbol = b.root.context.gymApp.tokenManager.getCurrencySymbol()
-            b.tvPaymentAmount.text = "$symbol${"%.2f".format(p.amount)}"
+            b.tvPaymentAmount.text = p.amount.toCurrencyString(symbol)
             b.tvPaymentMethod.text = p.method?.name ?: "—"
             b.tvPaymentDate.text   = try {
                 outFmt.format(inFmt.parse(p.paymentDate) ?: Date())

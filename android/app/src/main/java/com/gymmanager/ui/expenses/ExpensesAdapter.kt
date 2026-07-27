@@ -7,6 +7,8 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.gymmanager.data.model.Expense
 import com.gymmanager.databinding.ItemExpenseBinding
+import com.gymmanager.gymApp
+import com.gymmanager.utils.toCurrencyString
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -18,9 +20,10 @@ class ExpensesAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(expense: Expense) {
+            val symbol = binding.root.context.gymApp.tokenManager.getCurrencySymbol()
             binding.tvExpenseTitle.text    = expense.title
             binding.tvExpenseCategory.text = expense.category?.name ?: "—"
-            binding.tvExpenseAmount.text   = "₹%.2f".format(expense.amount)
+            binding.tvExpenseAmount.text   = expense.amount.toCurrencyString(symbol)
             binding.tvExpenseDate.text     = formatDate(expense.expenseDate)
             binding.tvExpenseNotes.text    = expense.notes ?: ""
             binding.btnDeleteExpense.setOnClickListener { onDelete(expense) }

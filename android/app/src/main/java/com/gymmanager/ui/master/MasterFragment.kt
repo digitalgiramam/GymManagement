@@ -11,6 +11,7 @@ import com.gymmanager.R
 import com.gymmanager.databinding.FragmentMasterBinding
 import com.gymmanager.gymApp
 import com.gymmanager.ui.auth.LoginActivity
+import com.gymmanager.ui.main.MainActivity
 
 /**
  * "More" tab — entry point for Expenses, Staff, Settings, and Logout.
@@ -31,9 +32,15 @@ class MasterFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Show gym name and owner name
-        binding.tvGymName.text   = requireContext().gymApp.tokenManager.getUserName() ?: "Your Gym"
+        // Show gym name and owner email
+        binding.tvGymName.text    = requireContext().gymApp.tokenManager.getUserName() ?: "Your Gym"
         binding.tvOwnerEmail.text = requireContext().gymApp.tokenManager.getUserEmail() ?: ""
+
+        // Show cached gym logo
+        val logoBmp = requireContext().gymApp.logoCache.load(requireContext())
+        if (logoBmp != null) {
+            binding.ivGymLogoMaster.setImageBitmap(logoBmp)
+        }
 
         binding.cardExpenses.setOnClickListener {
             findNavController().navigate(R.id.action_masterFragment_to_expensesFragment)
