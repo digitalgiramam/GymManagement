@@ -25,6 +25,9 @@ class AttendanceViewModel(
     private val _checkInResult = MutableLiveData<NetworkResult<Attendance>>()
     val checkInResult: LiveData<NetworkResult<Attendance>> = _checkInResult
 
+    private val _checkOutResult = MutableLiveData<NetworkResult<Attendance>>()
+    val checkOutResult: LiveData<NetworkResult<Attendance>> = _checkOutResult
+
     init {
         loadAttendance()
         loadMembers()
@@ -49,6 +52,15 @@ class AttendanceViewModel(
         viewModelScope.launch {
             val result = attendanceRepo.checkIn(memberId)
             _checkInResult.value = result
+            if (result is NetworkResult.Success) loadAttendance()
+        }
+    }
+
+    fun checkOut(attendanceId: Int) {
+        _checkOutResult.value = NetworkResult.Loading
+        viewModelScope.launch {
+            val result = attendanceRepo.checkOut(attendanceId)
+            _checkOutResult.value = result
             if (result is NetworkResult.Success) loadAttendance()
         }
     }

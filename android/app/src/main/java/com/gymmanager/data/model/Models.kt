@@ -170,6 +170,7 @@ data class Attendance(
     val memberId: Int,
     val member: MemberSummary?,
     val checkedInAt: String,
+    val checkedOutAt: String? = null,   // null = still checked in
 )
 
 data class CheckInRequest(

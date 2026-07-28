@@ -30,6 +30,7 @@
     <!-- General -->
     <color name="black">#000000</color>
     <color name="error">#B00020</color>
+    <color name="success">#2E7D32</color>
 
     <!-- Semantic aliases used in staff/member portal layouts -->
     <color name="background">#F5F7FA</color>

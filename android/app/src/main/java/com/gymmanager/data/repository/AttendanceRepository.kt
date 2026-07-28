@@ -12,4 +12,7 @@ class AttendanceRepository(private val api: ApiService) : BaseRepository() {
 
     suspend fun checkIn(memberId: Int): NetworkResult<Attendance> =
         safeApiCall { api.checkIn(CheckInRequest(memberId)) }
+
+    suspend fun checkOut(attendanceId: Int): NetworkResult<Attendance> =
+        safeApiCall { api.checkOut(attendanceId) }
 }

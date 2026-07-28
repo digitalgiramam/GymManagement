@@ -1,7 +1,8 @@
 /**
  * Attendance routes (multi-tenant)
- * POST /api/attendance  — record a check-in
- * GET  /api/attendance  — today's check-ins
+ * POST /api/attendance          — record a check-in
+ * GET  /api/attendance          — today's check-ins
+ * PUT  /api/attendance/:id/checkout — record a check-out
  */
 
 const express   = require('express');
@@ -93,6 +94,46 @@ router.get('/', async (req, res) => {
   } catch (err) {
     console.error('[attendance/GET]', err);
     return res.status(500).json({ error: 'Failed to fetch attendance.' });
+  }
+});
+
+// ── PUT /api/attendance/:id/checkout ──────────────────────────────────────
+router.put('/:id/checkout', async (req, res) => {
+  const tenantId    = req.user.tenantId;
+  const attendanceId = parseInt(req.params.id, 10);
+  if (isNaN(attendanceId)) return res.status(400).json({ error: 'Invalid attendance ID.' });
+
+  try {
+    // Make sure the record belongs to this tenant and hasn't been checked out yet
+    const { rows: existing } = await query(
+      `SELECT id, "checkedOutAt", "memberId" FROM attendance WHERE id = $1 AND "tenantId" = $2`,
+      [attendanceId, tenantId],
+    );
+    if (!existing[0]) return res.status(404).json({ error: 'Attendance record not found.' });
+    if (existing[0].checkedOutAt) {
+      return res.status(409).json({ error: 'Member has already been checked out.' });
+    }
+
+    const { rows } = await query(
+      `UPDATE attendance SET "checkedOutAt" = NOW() WHERE id = $1 RETURNING *`,
+      [attendanceId],
+    );
+    const record   = rows[0];
+    const memberId = record.memberId;
+
+    // Fetch member info to return in response
+    const { rows: mRows } = await query(
+      `SELECT id, "fullName", phone FROM members WHERE id = $1`, [memberId],
+    );
+    const member = mRows[0];
+
+    return res.json({
+      ...record,
+      member: member ? { id: member.id, fullName: member.fullName, phone: member.phone } : null,
+    });
+  } catch (err) {
+    console.error('[attendance/checkout]', err);
+    return res.status(500).json({ error: 'Failed to record check-out.' });
   }
 });
 

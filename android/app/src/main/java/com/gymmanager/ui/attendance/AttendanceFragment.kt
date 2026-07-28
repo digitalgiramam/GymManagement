@@ -31,7 +31,9 @@ class AttendanceFragment : Fragment() {
         })[AttendanceViewModel::class.java]
     }
 
-    private val adapter = AttendanceAdapter()
+    private val adapter = AttendanceAdapter(onMarkOut = { record ->
+        viewModel.checkOut(record.id)
+    })
     private var memberList: List<Member> = emptyList()
 
     override fun onCreateView(
@@ -76,6 +78,18 @@ class AttendanceFragment : Fragment() {
                     binding.root.showSnackbar(
                         getString(R.string.msg_checked_in, result.data.member?.fullName ?: "Member")
                     )
+                is NetworkResult.Error ->
+                    binding.root.showSnackbarError(result.message)
+                else -> Unit
+            }
+        }
+
+        viewModel.checkOutResult.observe(viewLifecycleOwner) { result ->
+            when (result) {
+                is NetworkResult.Success -> {
+                    val name = result.data.member?.fullName ?: "Member"
+                    binding.root.showSnackbar("$name checked out successfully")
+                }
                 is NetworkResult.Error ->
                     binding.root.showSnackbarError(result.message)
                 else -> Unit

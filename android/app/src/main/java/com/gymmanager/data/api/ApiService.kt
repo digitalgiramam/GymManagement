@@ -88,6 +88,9 @@ interface ApiService {
     @POST("attendance")
     suspend fun checkIn(@Body request: CheckInRequest): Response<Attendance>
 
+    @PUT("attendance/{id}/checkout")
+    suspend fun checkOut(@Path("id") attendanceId: Int): Response<Attendance>
+
     // ── Payments ──────────────────────────────────────────────────────────────
     @GET("payments/methods")
     suspend fun getPaymentMethods(): Response<List<PaymentMethod>>
