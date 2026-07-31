@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
@@ -20,6 +21,7 @@ import com.gymmanager.utils.hide
 import com.gymmanager.utils.show
 import com.gymmanager.utils.showSnackbar
 import com.gymmanager.utils.showSnackbarError
+import com.gymmanager.utils.toCurrencyString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -135,13 +137,41 @@ class PaymentsFragment : Fragment() {
             return
         }
 
+        val symbol = requireContext().gymApp.tokenManager.getCurrencySymbol()
         val dialogBinding = DialogAddPaymentBinding.inflate(layoutInflater)
+
+        // ── Subscription info card helper ──────────────────────────────────────
+        fun updateSubscriptionInfo(member: Member) {
+            val plan = member.plan
+            if (plan != null) {
+                dialogBinding.tvDialogPlanName.text     = plan.name
+                dialogBinding.tvDialogPlanDuration.text = "${plan.durationDays} days"
+                dialogBinding.tvDialogPlanFee.text      = plan.fee.toCurrencyString(symbol)
+                // Auto-fill amount with plan fee
+                dialogBinding.etPaymentAmount.setText(plan.fee.toBigDecimal().toPlainString())
+            } else {
+                dialogBinding.tvDialogPlanName.text     = "No plan assigned"
+                dialogBinding.tvDialogPlanDuration.text = "—"
+                dialogBinding.tvDialogPlanFee.text      = "—"
+            }
+        }
 
         // Member spinner
         val memberNames = members.map { it.fullName }
         dialogBinding.spinnerMember.adapter = ArrayAdapter(
             requireContext(), android.R.layout.simple_spinner_item, memberNames
         ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+
+        // Show info for the initially-selected member (index 0)
+        if (members.isNotEmpty()) updateSubscriptionInfo(members[0])
+
+        // Update info whenever the member selection changes
+        dialogBinding.spinnerMember.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, pos: Int, id: Long) {
+                updateSubscriptionInfo(members[pos])
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
 
         // Method spinner
         val methodNames = methods.map { it.name }
@@ -188,8 +218,17 @@ class PaymentsFragment : Fragment() {
 
         val dialogBinding = DialogEditPaymentBinding.inflate(layoutInflater)
 
-        // Pre-fill
-        dialogBinding.etEditPaymentAmount.setText(payment.amount.toString())
+        // Subscription info (read-only)
+        if (payment.planName != null) {
+            dialogBinding.tvEditDialogPlanName.text     = payment.planName
+            dialogBinding.tvEditDialogPlanDuration.text = "${payment.planDurationDays} days"
+        } else {
+            dialogBinding.tvEditDialogPlanName.text     = "Unknown plan"
+            dialogBinding.tvEditDialogPlanDuration.text = "${payment.planDurationDays} days"
+        }
+
+        // Pre-fill amount and notes
+        dialogBinding.etEditPaymentAmount.setText(payment.amount.toBigDecimal().toPlainString())
         dialogBinding.etEditPaymentNotes.setText(payment.notes ?: "")
 
         val methodNames = methods.map { it.name }
@@ -229,9 +268,14 @@ class PaymentsFragment : Fragment() {
     // ── Delete Confirmation ────────────────────────────────────────────────────
 
     private fun confirmDelete(payment: Payment) {
+        val planInfo = if (payment.planName != null) " (${payment.planName})" else ""
         AlertDialog.Builder(requireContext())
             .setTitle("Delete Payment")
-            .setMessage("Delete payment of ${payment.amount} for ${payment.member?.fullName ?: "this member"}?")
+            .setMessage(
+                "Delete payment of ${payment.amount} for " +
+                "${payment.member?.fullName ?: "this member"}$planInfo?\n\n" +
+                "This will recalculate their membership expiry."
+            )
             .setPositiveButton("Delete") { _, _ -> viewModel.deletePayment(payment.id) }
             .setNegativeButton("Cancel", null)
             .show()

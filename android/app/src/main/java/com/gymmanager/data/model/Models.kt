@@ -198,14 +198,23 @@ data class Payment(
     val memberId: Int,
     val member: MemberSummary?,
     val planId: Int?,
+    /** Name of the subscription plan covered by this payment (e.g. "Monthly"). */
+    val planName: String?,
     val planDurationDays: Int,
+    /** Plan fee snapshotted at payment time — used for partial-payment detection. */
+    val planFee: Double?,
+    /** Amount actually paid in this transaction. */
     val amount: Double,
+    /** Outstanding balance = planFee - amount (0 if fully paid or expired). */
+    val overdueAmount: Double?,
     val methodId: Int,
     val method: PaymentMethodSummary?,
     val notes: String?,
     val paymentDate: String,
     /** New membership expiry date set by this payment. */
     val membershipExtendedTo: String?,
+    /** "Active" | "Partial" | "Overdue" */
+    val membershipStatus: String?,
 )
 
 data class CreatePaymentRequest(

@@ -5,6 +5,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
@@ -27,6 +28,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Opt out of edge-to-edge so the toolbar is NOT drawn behind the status bar.
+        // Without this on Android 15+ the logo overlaps the system status icons.
+        WindowCompat.setDecorFitsSystemWindows(window, true)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
@@ -83,8 +87,8 @@ class MainActivity : AppCompatActivity() {
     /** Loads the cached gym logo and sets it as the Toolbar logo (left of title). */
     fun applyToolbarLogo() {
         val bmp = gymApp.logoCache.load(this) ?: return
-        // Scale to ~40dp for the toolbar
-        val sizePx = (40 * resources.displayMetrics.density).toInt()
+        // Scale to 32dp — fits comfortably within the 56dp toolbar with padding
+        val sizePx = (32 * resources.displayMetrics.density).toInt()
         val scaled  = android.graphics.Bitmap.createScaledBitmap(bmp, sizePx, sizePx, true)
         binding.toolbar.logo = BitmapDrawable(resources, scaled)
     }

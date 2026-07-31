@@ -20,21 +20,50 @@ const router = express.Router();
 
 const PAYMENT_SELECT = `
   SELECT p.*,
-         m.id        AS m_id,
-         m."fullName" AS m_name,
-         m.phone      AS m_phone,
-         pm.id        AS pm_id,
-         pm.name      AS pm_name
+         m.id               AS m_id,
+         m."fullName"       AS m_name,
+         m.phone            AS m_phone,
+         m."membershipExpiry" AS m_expiry,
+         pm.id              AS pm_id,
+         pm.name            AS pm_name,
+         pl.name            AS pl_name
   FROM   payments p
-  JOIN   members m         ON m.id  = p."memberId"
+  JOIN   members m          ON m.id  = p."memberId"
   JOIN   payment_methods pm ON pm.id = p."methodId"
+  LEFT JOIN plans pl        ON pl.id = p."planId"
 `;
 
 function formatPayment(row) {
-  const { m_id, m_name, m_phone, pm_id, pm_name, ...p } = row;
+  const { m_id, m_name, m_phone, m_expiry, pm_id, pm_name, pl_name, ...p } = row;
+  const now        = new Date();
+  const paidAmount = parseFloat(p.amount)  || 0;
+  const planFee    = parseFloat(p.planFee) || 0;
+
+  // "Overdue" when subscription period has lapsed.
+  // "Partial" when subscription is still active but amount < plan fee.
+  // "Active"  when fully paid and subscription is still active.
+  const extendedTo = p.membershipExtendedTo ? new Date(p.membershipExtendedTo) : null;
+  const isExpired  = !extendedTo || extendedTo <= now;
+
+  let membershipStatus;
+  if (isExpired) {
+    membershipStatus = 'Overdue';
+  } else if (planFee > 0 && paidAmount < planFee) {
+    membershipStatus = 'Partial';
+  } else {
+    membershipStatus = 'Active';
+  }
+
+  // Amount outstanding (0 for fully-paid or expired records)
+  const overdueAmount = isExpired ? 0 : Math.max(0, planFee - paidAmount);
+
   return {
     ...p,
-    amount: parseFloat(p.amount),
+    amount: paidAmount,
+    planFee,
+    overdueAmount,
+    planName: pl_name ?? null,
+    membershipStatus,
     member: m_id  != null ? { id: m_id,  fullName: m_name,  phone: m_phone } : null,
     method: pm_id != null ? { id: pm_id, name: pm_name }                     : null,
   };
@@ -214,9 +243,9 @@ router.post('/', async (req, res) => {
 
   try {
     const newId = await transaction(async (client) => {
-      // Fetch member's current plan
+      // Fetch member's current plan (including fee to snapshot at payment time)
       const { rows: mRows } = await client.query(
-        `SELECT m."membershipExpiry", p.id AS "planId", p."durationDays"
+        `SELECT m."membershipExpiry", p.id AS "planId", p."durationDays", p.fee AS "planFee"
          FROM   members m
          JOIN   plans p ON p.id = m."planId"
          WHERE  m.id = $1 AND m."tenantId" = $2`,
@@ -235,16 +264,17 @@ router.post('/', async (req, res) => {
         const e = new Error('Payment method not found.'); e.status = 404; throw e;
       }
 
-      const { planId, durationDays: planDurationDays } = mRows[0];
+      const { planId, durationDays: planDurationDays, planFee } = mRows[0];
       const payDate = paymentDate ? new Date(paymentDate) : new Date();
 
-      // Insert payment (membershipExtendedTo set by recalculate below)
+      // Insert payment — planFee snapshotted so partial-payment detection
+      // remains correct even if the plan fee changes later.
       const { rows: pRows } = await client.query(
         `INSERT INTO payments
-           ("tenantId","memberId","methodId","planId","planDurationDays",amount,notes,"paymentDate")
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+           ("tenantId","memberId","methodId","planId","planDurationDays","planFee",amount,notes,"paymentDate")
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
          RETURNING id`,
-        [tenantId, memberId, methodId, planId, planDurationDays, amount, notes ?? null, payDate],
+        [tenantId, memberId, methodId, planId, planDurationDays, planFee, amount, notes ?? null, payDate],
       );
 
       // Replay all payments to set correct membershipExtendedTo + update member expiry
@@ -293,7 +323,7 @@ router.put('/:id', async (req, res) => {
 
       const { amount, methodId, notes } = parsed.data;
 
-      if (methodId) {
+      if (methodId !== undefined) {
         const { rows: pmRows } = await client.query(
           `SELECT id FROM payment_methods WHERE id = $1 AND "tenantId" = $2`,
           [methodId, tenantId],
@@ -301,14 +331,22 @@ router.put('/:id', async (req, res) => {
         if (!pmRows[0]) { const e = new Error('Payment method not found.'); e.status = 404; throw e; }
       }
 
-      await client.query(
-        `UPDATE payments
-         SET    amount     = COALESCE($1, amount),
-                "methodId" = COALESCE($2, "methodId"),
-                notes      = CASE WHEN $3 THEN $4 ELSE notes END
-         WHERE  id = $5`,
-        [amount ?? null, methodId ?? null, 'notes' in parsed.data, notes ?? null, id],
-      );
+      // Build SET clause dynamically to avoid type-inference issues with NULL parameters
+      const sets = [];
+      const vals = [];
+      let p = 1;
+
+      if (amount  !== undefined) { sets.push(`amount = $${p++}`);     vals.push(amount); }
+      if (methodId !== undefined) { sets.push(`"methodId" = $${p++}`); vals.push(methodId); }
+      if ('notes' in parsed.data) { sets.push(`notes = $${p++}`);      vals.push(notes ?? null); }
+
+      if (sets.length > 0) {
+        vals.push(id, tenantId);
+        await client.query(
+          `UPDATE payments SET ${sets.join(', ')} WHERE id = $${p} AND "tenantId" = $${p + 1}`,
+          vals,
+        );
+      }
 
       await recalculateMemberExpiry(client, rows[0].memberId, tenantId);
     });
@@ -318,6 +356,8 @@ router.put('/:id', async (req, res) => {
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });
     console.error('[payments/PUT]', err);
+    if (err.code === '42703') return res.status(500).json({ error: `DB migration needed: ${err.message}` });
+    if (err.code === '42P01') return res.status(500).json({ error: `DB migration needed: table ${err.message}` });
     return res.status(500).json({ error: 'Failed to update payment.' });
   }
 });
@@ -342,6 +382,9 @@ router.delete('/:id', async (req, res) => {
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });
     console.error('[payments/DELETE]', err);
+    // Help diagnose missing migration columns
+    if (err.code === '42703') return res.status(500).json({ error: `DB migration needed: ${err.message}` });
+    if (err.code === '42P01') return res.status(500).json({ error: `DB migration needed: table ${err.message}` });
     return res.status(500).json({ error: 'Failed to delete payment.' });
   }
 });
