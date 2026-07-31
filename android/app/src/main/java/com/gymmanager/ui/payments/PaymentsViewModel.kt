@@ -4,10 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gymmanager.data.model.CreatePaymentRequest
-import com.gymmanager.data.model.Member
-import com.gymmanager.data.model.Payment
-import com.gymmanager.data.model.PaymentMethod
+import com.gymmanager.data.model.*
 import com.gymmanager.data.repository.MemberRepository
 import com.gymmanager.data.repository.PaymentRepository
 import com.gymmanager.utils.NetworkResult
@@ -30,6 +27,15 @@ class PaymentsViewModel(
     private val _addResult = MutableLiveData<NetworkResult<Payment>>()
     val addResult: LiveData<NetworkResult<Payment>> = _addResult
 
+    private val _editResult = MutableLiveData<NetworkResult<Payment>>()
+    val editResult: LiveData<NetworkResult<Payment>> = _editResult
+
+    private val _deleteResult = MutableLiveData<NetworkResult<Unit>>()
+    val deleteResult: LiveData<NetworkResult<Unit>> = _deleteResult
+
+    private val _walletBalance = MutableLiveData<NetworkResult<WalletBalance>>()
+    val walletBalance: LiveData<NetworkResult<WalletBalance>> = _walletBalance
+
     init {
         loadPayments()
         loadMembers()
@@ -38,9 +44,7 @@ class PaymentsViewModel(
 
     fun loadPayments() {
         _payments.value = NetworkResult.Loading
-        viewModelScope.launch {
-            _payments.value = paymentRepo.getPayments()
-        }
+        viewModelScope.launch { _payments.value = paymentRepo.getPayments() }
     }
 
     fun loadMembers() {
@@ -57,12 +61,36 @@ class PaymentsViewModel(
         }
     }
 
+    fun loadWalletBalance(memberId: Int) {
+        viewModelScope.launch {
+            _walletBalance.value = paymentRepo.getMemberWallet(memberId)
+        }
+    }
+
     fun addPayment(request: CreatePaymentRequest) {
         _addResult.value = NetworkResult.Loading
         viewModelScope.launch {
             val result = paymentRepo.createPayment(request)
             _addResult.value = result
-            if (result is NetworkResult.Success) loadPayments()
+            if (result is NetworkResult.Success) { loadPayments(); loadMembers() }
+        }
+    }
+
+    fun editPayment(id: Int, request: UpdatePaymentRequest) {
+        _editResult.value = NetworkResult.Loading
+        viewModelScope.launch {
+            val result = paymentRepo.updatePayment(id, request)
+            _editResult.value = result
+            if (result is NetworkResult.Success) { loadPayments(); loadMembers() }
+        }
+    }
+
+    fun deletePayment(id: Int) {
+        _deleteResult.value = NetworkResult.Loading
+        viewModelScope.launch {
+            val result = paymentRepo.deletePayment(id)
+            _deleteResult.value = result
+            if (result is NetworkResult.Success) { loadPayments(); loadMembers() }
         }
     }
 }

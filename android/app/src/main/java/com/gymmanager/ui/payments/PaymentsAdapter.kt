@@ -1,6 +1,7 @@
 package com.gymmanager.ui.payments
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -11,21 +12,51 @@ import com.gymmanager.gymApp
 import com.gymmanager.utils.toCurrencyString
 import com.gymmanager.utils.toDisplayDate
 
-class PaymentsAdapter :
-    ListAdapter<Payment, PaymentsAdapter.ViewHolder>(DIFF) {
+class PaymentsAdapter(
+    private val onEdit:   (Payment) -> Unit = {},
+    private val onDelete: (Payment) -> Unit = {},
+) : ListAdapter<Payment, PaymentsAdapter.ViewHolder>(DIFF) {
 
     inner class ViewHolder(private val b: ItemPaymentBinding) :
         RecyclerView.ViewHolder(b.root) {
 
         fun bind(item: Payment) {
-            // Read symbol fresh on every bind — never stale even after a settings change.
-            val symbol = b.root.context.gymApp.tokenManager.getCurrencySymbol()
+            val sym = b.root.context.gymApp.tokenManager.getCurrencySymbol()
+
             b.tvMemberName.text = item.member?.fullName ?: "Member #${item.memberId}"
-            b.tvAmount.text     = item.amount.toCurrencyString(symbol)
+            b.tvAmount.text     = item.amount.toCurrencyString(sym)
             b.tvMethod.text     = item.method?.name ?: "—"
             b.tvDate.text       = item.paymentDate.toDisplayDate()
-            b.tvNotes.text      = item.notes ?: ""
-            b.tvNotes.visibility = if (item.notes.isNullOrBlank()) ViewGroup.GONE else ViewGroup.VISIBLE
+
+            // Notes
+            if (item.notes.isNullOrBlank()) {
+                b.tvNotes.visibility = View.GONE
+            } else {
+                b.tvNotes.text       = item.notes
+                b.tvNotes.visibility = View.VISIBLE
+            }
+
+            // Wallet adjustment
+            val adj = item.walletAdjustment
+            if (adj != 0.0) {
+                val ctx = b.root.context
+                when {
+                    adj > 0 -> {
+                        b.tvWalletAdjustment.text = "+${adj.toCurrencyString(sym)} credited to wallet"
+                        b.tvWalletAdjustment.setTextColor(ctx.getColor(com.gymmanager.R.color.success))
+                    }
+                    else -> {
+                        b.tvWalletAdjustment.text = "${adj.toCurrencyString(sym)} debited from wallet"
+                        b.tvWalletAdjustment.setTextColor(ctx.getColor(com.gymmanager.R.color.expiry_expired))
+                    }
+                }
+                b.tvWalletAdjustment.visibility = View.VISIBLE
+            } else {
+                b.tvWalletAdjustment.visibility = View.GONE
+            }
+
+            b.btnEditPayment.setOnClickListener   { onEdit(item) }
+            b.btnDeletePayment.setOnClickListener { onDelete(item) }
         }
     }
 

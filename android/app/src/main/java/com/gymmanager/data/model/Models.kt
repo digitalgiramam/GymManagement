@@ -119,6 +119,7 @@ data class Member(
     val lastPaymentDate: String?,
     val membershipExpiry: String?,
     val daysUntilExpiry: Int?,
+    val walletBalance: Double = 0.0,   // advance payment credit
 )
 
 data class MemberDetail(
@@ -203,6 +204,13 @@ data class Payment(
     val method: PaymentMethodSummary?,
     val notes: String?,
     val paymentDate: String,
+    /**
+     * Signed wallet delta applied when this payment was recorded.
+     *   > 0  member overpaid  → credit
+     *   < 0  member underpaid → debt
+     *   = 0  exact payment
+     */
+    val walletAdjustment: Double = 0.0,
 )
 
 data class CreatePaymentRequest(
@@ -211,6 +219,18 @@ data class CreatePaymentRequest(
     val methodId: Int,
     val notes: String? = null,
     val paymentDate: String? = null,
+)
+
+data class UpdatePaymentRequest(
+    val amount: Double? = null,
+    val methodId: Int? = null,
+    val notes: String? = null,
+)
+
+data class WalletBalance(
+    val memberId: Int,
+    val fullName: String,
+    val walletBalance: Double,
 )
 
 data class CreatePaymentMethodRequest(

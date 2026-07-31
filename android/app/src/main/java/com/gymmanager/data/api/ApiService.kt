@@ -105,8 +105,20 @@ interface ApiService {
         @Query("endDate")   endDate:   String? = null,
     ): Response<List<Payment>>
 
+    @GET("payments/wallet/{memberId}")
+    suspend fun getMemberWallet(@Path("memberId") memberId: Int): Response<WalletBalance>
+
     @POST("payments")
     suspend fun createPayment(@Body request: CreatePaymentRequest): Response<Payment>
+
+    @PUT("payments/{id}")
+    suspend fun updatePayment(
+        @Path("id") id: Int,
+        @Body request: UpdatePaymentRequest,
+    ): Response<Payment>
+
+    @DELETE("payments/{id}")
+    suspend fun deletePayment(@Path("id") id: Int): Response<Unit>
 
     // ── Expenses ──────────────────────────────────────────────────────────────
     @GET("expenses/categories")

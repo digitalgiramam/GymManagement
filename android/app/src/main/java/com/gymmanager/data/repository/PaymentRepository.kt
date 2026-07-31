@@ -21,4 +21,13 @@ class PaymentRepository(private val api: ApiService) : BaseRepository() {
 
     suspend fun createPayment(request: CreatePaymentRequest): NetworkResult<Payment> =
         safeApiCall { api.createPayment(request) }
+
+    suspend fun updatePayment(id: Int, request: UpdatePaymentRequest): NetworkResult<Payment> =
+        safeApiCall { api.updatePayment(id, request) }
+
+    suspend fun deletePayment(id: Int): NetworkResult<Unit> =
+        safeApiCall { api.deletePayment(id) }
+
+    suspend fun getMemberWallet(memberId: Int): NetworkResult<WalletBalance> =
+        safeApiCall { api.getMemberWallet(memberId) }
 }

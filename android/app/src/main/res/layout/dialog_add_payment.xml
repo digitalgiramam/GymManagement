@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content">
 
@@ -10,6 +11,7 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <!-- Member selector -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -24,16 +26,15 @@
             android:layout_marginTop="4dp"
             android:layout_marginBottom="6dp" />
 
-        <!-- Membership status card — updated dynamically when member changes -->
+        <!-- Membership status card -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardMembershipStatus"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
+            android:layout_marginBottom="8dp"
             app:cardBackgroundColor="@color/surface"
             app:cardCornerRadius="6dp"
-            app:cardElevation="0dp"
-            xmlns:app="http://schemas.android.com/apk/res-auto">
+            app:cardElevation="0dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -75,19 +76,123 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Wallet balance + projection card -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardWallet"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            app:cardCornerRadius="6dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="#E8F5E9">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="8dp">
+
+                <!-- Current wallet row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Current Wallet"
+                        android:textSize="12sp"
+                        android:textColor="#2E7D32" />
+
+                    <TextView
+                        android:id="@+id/tvWalletBalance"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:textColor="#2E7D32"
+                        android:text="0.00" />
+
+                </LinearLayout>
+
+                <!-- Suggested amount row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="4dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Suggested to collect"
+                        android:textSize="12sp"
+                        android:textColor="#2E7D32" />
+
+                    <TextView
+                        android:id="@+id/tvSuggestedAmount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:textColor="#2E7D32"
+                        android:text="—" />
+
+                </LinearLayout>
+
+                <!-- Projection row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="4dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Wallet after payment"
+                        android:textSize="12sp"
+                        android:textColor="#2E7D32" />
+
+                    <TextView
+                        android:id="@+id/tvWalletProjection"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:text="—" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Amount field -->
         <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilAmount"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="@string/hint_amount"
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etAmount"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="numberDecimal"
                 android:imeOptions="actionNext" />
+
         </com.google.android.material.textfield.TextInputLayout>
 
+        <!-- Payment method -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -103,17 +208,20 @@
             android:layout_marginTop="4dp"
             android:layout_marginBottom="10dp" />
 
+        <!-- Notes -->
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="@string/hint_notes"
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etNotes"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="textMultiLine"
                 android:minLines="2" />
+
         </com.google.android.material.textfield.TextInputLayout>
 
     </LinearLayout>
