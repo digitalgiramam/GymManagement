@@ -20,7 +20,6 @@ class GymApp : Application() {
     val memberRepository     by lazy { MemberRepository(apiService) }
     val planRepository       by lazy { PlanRepository(apiService) }
     val attendanceRepository by lazy { AttendanceRepository(apiService) }
-    val paymentRepository    by lazy { PaymentRepository(apiService) }
     val expenseRepository    by lazy { ExpenseRepository(apiService) }
     val staffRepository      by lazy { StaffRepository(apiService) }
     val settingsRepository   by lazy { SettingsRepository(apiService) }

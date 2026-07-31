@@ -18,7 +18,6 @@ import com.gymmanager.databinding.DialogEditMemberBinding
 import com.gymmanager.databinding.FragmentMemberDetailBinding
 import com.gymmanager.gymApp
 import com.gymmanager.ui.attendance.AttendanceAdapter
-import com.gymmanager.ui.payments.PaymentsAdapter
 import com.gymmanager.utils.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -43,7 +42,6 @@ class MemberDetailFragment : Fragment() {
     }
 
     private val attendanceAdapter = AttendanceAdapter()
-    private val paymentsAdapter   = PaymentsAdapter()
 
     /** Cached member for the edit dialog */
     private var currentMember: MemberDetail? = null
@@ -62,11 +60,6 @@ class MemberDetailFragment : Fragment() {
 
         binding.rvAttendance.apply {
             adapter = attendanceAdapter
-            layoutManager = LinearLayoutManager(requireContext())
-            isNestedScrollingEnabled = false
-        }
-        binding.rvPayments.apply {
-            adapter = paymentsAdapter
             layoutManager = LinearLayoutManager(requireContext())
             isNestedScrollingEnabled = false
         }
@@ -143,7 +136,6 @@ class MemberDetailFragment : Fragment() {
         }
 
         attendanceAdapter.submitList(m.attendance)
-        paymentsAdapter.submitList(m.payments)
     }
 
     // ── Edit dialog with date picker ───────────────────────────────────────

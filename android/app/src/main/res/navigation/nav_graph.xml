@@ -37,12 +37,6 @@
         android:label="Attendance"
         tools:layout="@layout/fragment_attendance" />
 
-    <fragment
-        android:id="@+id/paymentsFragment"
-        android:name="com.gymmanager.ui.payments.PaymentsFragment"
-        android:label="Payments"
-        tools:layout="@layout/fragment_payments" />
-
     <!-- ── Bottom Nav: More (Master) ─────────────────────────────────────── -->
     <fragment
         android:id="@+id/masterFragment"

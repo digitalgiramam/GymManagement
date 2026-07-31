@@ -56,31 +56,12 @@ class DashboardFragment : Fragment() {
                     binding.tvActiveCount.text   = s.totalActiveMembers.toString()
                     binding.tvInactiveCount.text = s.totalInactiveMembers.toString()
                     binding.tvCheckIns.text      = s.todayCheckIns.toString()
-                    binding.tvRevenue.text       = s.currentMonthRevenue.toCurrencyString(symbol)
+                    binding.tvExpenses?.text     = s.currentMonthExpenses.toCurrencyString(symbol)
 
-                    // New SaaS fields — show if views exist in layout
-                    binding.tvExpenses?.text  = s.currentMonthExpenses.toCurrencyString(symbol)
-                    binding.tvNetProfit?.text = s.netProfit.toCurrencyString(symbol)
-
-                    // Merge recent activity: check-ins + payments (sorted newest first)
                     val checkIns = s.last5CheckIns.map {
                         ActivityItem.CheckIn(it.id, it.member?.fullName ?: "—", it.checkedInAt)
                     }
-                    val payments = s.last5Payments.map {
-                        ActivityItem.PaymentItem(
-                            id         = it.id,
-                            memberName = it.member?.fullName ?: "—",
-                            amount     = it.amount,
-                            method     = it.method?.name ?: "—",   // PaymentMethodSummary → String
-                            time       = it.paymentDate,
-                        )
-                    }
-                    activityAdapter.submitList((checkIns + payments).sortedByDescending {
-                        when (it) {
-                            is ActivityItem.CheckIn     -> it.time
-                            is ActivityItem.PaymentItem -> it.time
-                        }
-                    })
+                    activityAdapter.submitList(checkIns)
                 }
                 is NetworkResult.Error -> {
                     binding.progressBar.hide()

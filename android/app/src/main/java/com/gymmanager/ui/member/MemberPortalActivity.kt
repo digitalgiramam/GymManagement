@@ -17,7 +17,7 @@ import java.util.*
 
 /**
  * Self-service portal for gym members.
- * Shows: profile, membership expiry, attendance history, payment history.
+ * Shows: profile, membership expiry, and attendance history.
  */
 class MemberPortalActivity : AppCompatActivity() {
 
@@ -33,7 +33,6 @@ class MemberPortalActivity : AppCompatActivity() {
     }
 
     private val attendanceAdapter = MemberAttendanceAdapter()
-    private val paymentAdapter    = MemberPaymentAdapter()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,7 +40,6 @@ class MemberPortalActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         binding.rvAttendance.adapter = attendanceAdapter
-        binding.rvPayments.adapter   = paymentAdapter
 
         binding.btnLogout.setOnClickListener { logout() }
         binding.swipeRefresh.setOnRefreshListener { viewModel.loadAll() }
@@ -88,10 +86,6 @@ class MemberPortalActivity : AppCompatActivity() {
 
         viewModel.attendance.observe(this) { result ->
             if (result is NetworkResult.Success) attendanceAdapter.submitList(result.data)
-        }
-
-        viewModel.payments.observe(this) { result ->
-            if (result is NetworkResult.Success) paymentAdapter.submitList(result.data)
         }
     }
 

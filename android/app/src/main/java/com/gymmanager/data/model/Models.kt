@@ -119,7 +119,6 @@ data class Member(
     val lastPaymentDate: String?,
     val membershipExpiry: String?,
     val daysUntilExpiry: Int?,
-    val walletBalance: Double = 0.0,   // advance payment credit
 )
 
 data class MemberDetail(
@@ -138,7 +137,6 @@ data class MemberDetail(
     val membershipExpiry: String?,
     val daysUntilExpiry: Int?,
     val attendance: List<Attendance>,
-    val payments: List<Payment>,
 )
 
 data class CreateMemberRequest(
@@ -176,66 +174,6 @@ data class Attendance(
 
 data class CheckInRequest(
     val memberId: Int,
-)
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Payment
-// ─────────────────────────────────────────────────────────────────────────────
-
-data class PaymentMethod(
-    val id: Int,
-    val tenantId: Int,
-    val name: String,
-    val isActive: Boolean,
-)
-
-data class PaymentMethodSummary(
-    val id: Int,
-    val name: String,
-)
-
-data class Payment(
-    val id: Int,
-    val tenantId: Int,
-    val memberId: Int,
-    val member: MemberSummary?,
-    val amount: Double,
-    val methodId: Int,
-    val method: PaymentMethodSummary?,
-    val notes: String?,
-    val paymentDate: String,
-    /**
-     * Signed wallet delta applied when this payment was recorded.
-     *   > 0  member overpaid  → credit
-     *   < 0  member underpaid → debt
-     *   = 0  exact payment
-     */
-    val walletAdjustment: Double = 0.0,
-)
-
-data class CreatePaymentRequest(
-    val memberId: Int,
-    val amount: Double,
-    val methodId: Int,
-    val notes: String? = null,
-    val paymentDate: String? = null,
-)
-
-data class UpdatePaymentRequest(
-    val amount: Double? = null,
-    val methodId: Int? = null,
-    val notes: String? = null,
-)
-
-data class WalletBalance(
-    val memberId: Int,
-    val fullName: String,
-    val walletBalance: Double,
-)
-
-data class CreatePaymentMethodRequest(
-    val name: String,
-    val isActive: Boolean = true,
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -316,11 +254,8 @@ data class DashboardStats(
     val totalActiveMembers: Int,
     val totalInactiveMembers: Int,
     val todayCheckIns: Int,
-    val currentMonthRevenue: Double,
     val currentMonthExpenses: Double,
-    val netProfit: Double,
     val last5CheckIns: List<Attendance>,
-    val last5Payments: List<Payment>,
     val last5Expenses: List<Expense>,
 )
 

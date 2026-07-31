@@ -7,23 +7,13 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.gymmanager.R
 import com.gymmanager.databinding.ItemRecentActivityBinding
-import com.gymmanager.gymApp
 import com.gymmanager.utils.toDisplayDateTime
-import com.gymmanager.utils.toCurrencyString
 
 /** Unified list item for the dashboard "Recent Activities" section. */
 sealed class ActivityItem {
     data class CheckIn(
         val id: Int,
         val memberName: String,
-        val time: String,
-    ) : ActivityItem()
-
-    data class PaymentItem(
-        val id: Int,
-        val memberName: String,
-        val amount: Double,
-        val method: String,
         val time: String,
     ) : ActivityItem()
 }
@@ -35,21 +25,12 @@ class RecentActivityAdapter :
         RecyclerView.ViewHolder(b.root) {
 
         fun bind(item: ActivityItem) {
-            // Read symbol fresh on every bind so DiffUtil-skipped rows still get the right value.
-            val symbol = b.root.context.gymApp.tokenManager.getCurrencySymbol()
             when (item) {
                 is ActivityItem.CheckIn -> {
                     b.ivIcon.setImageResource(R.drawable.ic_checkin)
                     b.tvTitle.text = item.memberName
                     b.tvSubtitle.text = b.root.context.getString(R.string.label_check_in)
                     b.tvDetail.text = item.time.toDisplayDateTime()
-                }
-                is ActivityItem.PaymentItem -> {
-                    b.ivIcon.setImageResource(R.drawable.ic_payment)
-                    b.tvTitle.text = item.memberName
-                    b.tvSubtitle.text = b.root.context.getString(
-                        R.string.label_payment_method, item.method)
-                    b.tvDetail.text = item.amount.toCurrencyString(symbol)
                 }
             }
         }
@@ -65,8 +46,7 @@ class RecentActivityAdapter :
     companion object {
         private val DIFF = object : DiffUtil.ItemCallback<ActivityItem>() {
             override fun areItemsTheSame(a: ActivityItem, b: ActivityItem) = when {
-                a is ActivityItem.CheckIn    && b is ActivityItem.CheckIn    -> a.id == b.id
-                a is ActivityItem.PaymentItem && b is ActivityItem.PaymentItem -> a.id == b.id
+                a is ActivityItem.CheckIn && b is ActivityItem.CheckIn -> a.id == b.id
                 else -> false
             }
             override fun areContentsTheSame(a: ActivityItem, b: ActivityItem) = a == b

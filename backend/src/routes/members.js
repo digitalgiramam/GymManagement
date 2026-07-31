@@ -2,7 +2,7 @@
  * Members routes (multi-tenant)
  * GET    /api/members       — list with optional ?search=
  * POST   /api/members       — create
- * GET    /api/members/:id   — detail + attendance + payments
+ * GET    /api/members/:id   — detail + attendance
  * PUT    /api/members/:id   — update
  * DELETE /api/members/:id   — delete
  */
@@ -43,10 +43,7 @@ router.get('/', async (req, res) => {
     const { rows } = await query(
       `SELECT m.*,
               p.id AS "planId_", p.name AS "planName_", p."durationDays" AS "planDays_",
-              p.fee AS "planFee_", p."isActive" AS "planActive_",
-              (SELECT "paymentDate" FROM payments
-               WHERE "memberId" = m.id AND "tenantId" = $1
-               ORDER BY "paymentDate" DESC LIMIT 1) AS "lastPaymentDate_"
+              p.fee AS "planFee_", p."isActive" AS "planActive_"
        FROM members m
        JOIN plans p ON p.id = m."planId"
        WHERE m."tenantId" = $1
@@ -59,9 +56,8 @@ router.get('/', async (req, res) => {
 
     const enriched = rows.map(row => {
       const plan = { id: row.planId_, name: row.planName_, durationDays: row.planDays_, fee: row.planFee_, isActive: row.planActive_ };
-      const lastPaymentDate = row.lastPaymentDate_ || null;
-      const { planId_: _1, planName_: _2, planDays_: _3, planFee_: _4, planActive_: _5, lastPaymentDate_: _6, ...member } = row;
-      return enrichMember(member, plan, lastPaymentDate);
+      const { planId_: _1, planName_: _2, planDays_: _3, planFee_: _4, planActive_: _5, ...member } = row;
+      return enrichMember(member, plan, null);
     });
 
     return res.json(enriched);
@@ -94,27 +90,12 @@ router.get('/:id', async (req, res) => {
       [id, tenantId],
     );
 
-    const { rows: payRows } = await query(
-      `SELECT p.*, pm.id AS "methodId_", pm.name AS "methodName_"
-       FROM payments p
-       JOIN payment_methods pm ON pm.id = p."methodId"
-       WHERE p."memberId" = $1 AND p."tenantId" = $2
-       ORDER BY p."paymentDate" DESC LIMIT 50`,
-      [id, tenantId],
-    );
-
     const row  = mRows[0];
     const plan = { id: row.planId_, name: row.planName_, durationDays: row.planDays_, fee: row.planFee_, isActive: row.planActive_ };
     const { planId_: _1, planName_: _2, planDays_: _3, planFee_: _4, planActive_: _5, ...member } = row;
 
-    const payments = payRows.map(p => {
-      const { methodId_: mid, methodName_: mname, ...rest } = p;
-      return { ...rest, method: { id: mid, name: mname } };
-    });
-
-    const lastPaymentDate = payRows[0]?.paymentDate ?? null;
-    const enriched = enrichMember(member, plan, lastPaymentDate);
-    return res.json({ ...enriched, attendance: attRows, payments });
+    const enriched = enrichMember(member, plan, null);
+    return res.json({ ...enriched, attendance: attRows });
   } catch (err) {
     console.error('[members/GET/:id]', err);
     return res.status(500).json({ error: 'Failed to fetch member.' });

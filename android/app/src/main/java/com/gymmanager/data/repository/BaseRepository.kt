@@ -4,6 +4,9 @@ import com.google.gson.Gson
 import com.gymmanager.data.model.ApiError
 import com.gymmanager.utils.NetworkResult
 import retrofit2.Response
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 
 /**
  * Shared safe-call wrapper for all repository classes.
@@ -30,6 +33,12 @@ abstract class BaseRepository {
                 val errorMessage = parseErrorBody(response) ?: "Unknown error (${response.code()})"
                 NetworkResult.Error(errorMessage, response.code())
             }
+        } catch (e: SocketTimeoutException) {
+            NetworkResult.Error("Server is warming up — please try again in a few seconds.")
+        } catch (e: ConnectException) {
+            NetworkResult.Error("Could not reach server. Please check your connection and retry.")
+        } catch (e: UnknownHostException) {
+            NetworkResult.Error("No internet connection. Please check your network.")
         } catch (e: Exception) {
             NetworkResult.Error(e.localizedMessage ?: "Network error. Check your connection.")
         }

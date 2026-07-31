@@ -6,7 +6,6 @@
     <string name="nav_dashboard">Dashboard</string>
     <string name="nav_members">Members</string>
     <string name="nav_attendance">Attendance</string>
-    <string name="nav_payments">Payments</string>
     <string name="nav_more">More</string>
 
     <!-- Login -->
@@ -36,7 +35,6 @@
     <string name="label_net_profit">Net Profit</string>
     <string name="label_recent_activity">Recent Activity</string>
     <string name="label_check_in">Check-in</string>
-    <string name="label_payment_method">Payment · %s</string>
 
     <!-- Members -->
     <string name="title_add_member">Add Member</string>
@@ -59,18 +57,11 @@
     <string name="label_member_since">Member since</string>
     <string name="label_plan">Plan</string>
     <string name="label_attendance_history">Attendance History</string>
-    <string name="label_payment_history">Payment History</string>
-
     <!-- Attendance -->
     <string name="title_check_in">Check-in Member</string>
     <string name="label_select_member">Select Member</string>
     <string name="msg_checked_in">%s checked in successfully!</string>
     <string name="label_no_checkins">No check-ins today yet.</string>
-
-    <!-- Payments -->
-    <string name="title_add_payment">Add Payment</string>
-    <string name="msg_payment_added">Payment recorded!</string>
-    <string name="label_no_payments">No payments recorded yet.</string>
 
     <!-- Expenses -->
     <string name="title_add_expense">Add Expense</string>

@@ -20,16 +20,13 @@ router.get('/stats', async (req, res) => {
       activeRes,
       inactiveRes,
       todayRes,
-      revenueRes,
       expenseRes,
       checkInsRes,
-      paymentsRes,
       expensesRes,
     ] = await Promise.all([
       query(`SELECT COUNT(*)::int AS count FROM members WHERE "tenantId" = $1 AND status = 'Active'`,   [tenantId]),
       query(`SELECT COUNT(*)::int AS count FROM members WHERE "tenantId" = $1 AND status = 'Inactive'`, [tenantId]),
       query(`SELECT COUNT(*)::int AS count FROM attendance WHERE "tenantId" = $1 AND "checkedInAt" >= $2`, [tenantId, startOfDay]),
-      query(`SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE "tenantId" = $1 AND "paymentDate" >= $2`, [tenantId, startOfMonth]),
       query(`SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE "tenantId" = $1 AND "expenseDate" >= $2`,  [tenantId, startOfMonth]),
       // Last 5 check-ins
       query(
@@ -38,18 +35,6 @@ router.get('/stats', async (req, res) => {
          JOIN members m ON m.id = a."memberId"
          WHERE a."tenantId" = $1
          ORDER BY a."checkedInAt" DESC LIMIT 5`,
-        [tenantId],
-      ),
-      // Last 5 payments
-      query(
-        `SELECT p.*,
-                m.id AS "memberId_", m."fullName" AS "memberName_", m.phone AS "memberPhone_",
-                pm.id AS "methodId_", pm.name AS "methodName_"
-         FROM payments p
-         JOIN members m ON m.id = p."memberId"
-         JOIN payment_methods pm ON pm.id = p."methodId"
-         WHERE p."tenantId" = $1
-         ORDER BY p."paymentDate" DESC LIMIT 5`,
         [tenantId],
       ),
       // Last 5 expenses
@@ -68,29 +53,19 @@ router.get('/stats', async (req, res) => {
       return { ...att, member: { id: mid, fullName: mname, phone: mphone } };
     });
 
-    const last5Payments = paymentsRes.rows.map(r => {
-      const { memberId_: mmid, memberName_: mmname, memberPhone_: mmphone,
-              methodId_: mtid, methodName_: mtname, ...rest } = r;
-      return { ...rest, member: { id: mmid, fullName: mmname, phone: mmphone }, method: { id: mtid, name: mtname } };
-    });
-
     const last5Expenses = expensesRes.rows.map(r => {
       const { catId_: cid, catName_: cname, ...rest } = r;
       return { ...rest, category: { id: cid, name: cname } };
     });
 
-    const revenue  = parseFloat(revenueRes.rows[0].total);
     const expenses = parseFloat(expenseRes.rows[0].total);
 
     return res.json({
       totalActiveMembers:   activeRes.rows[0].count,
       totalInactiveMembers: inactiveRes.rows[0].count,
       todayCheckIns:        todayRes.rows[0].count,
-      currentMonthRevenue:  revenue,
       currentMonthExpenses: expenses,
-      netProfit:            revenue - expenses,
       last5CheckIns,
-      last5Payments,
       last5Expenses,
     });
   } catch (err) {

@@ -30,9 +30,6 @@ interface ApiService {
     @GET("member-portal/me/attendance")
     suspend fun getMemberAttendance(): Response<List<Attendance>>
 
-    @GET("member-portal/me/payments")
-    suspend fun getMemberPayments(): Response<List<Payment>>
-
     // ── Onboarding ────────────────────────────────────────────────────────────
     @POST("onboarding/create-gym")
     suspend fun createGym(@Body request: CreateGymRequest): Response<CreateGymResponse>
@@ -90,35 +87,6 @@ interface ApiService {
 
     @PUT("attendance/{id}/checkout")
     suspend fun checkOut(@Path("id") attendanceId: Int): Response<Attendance>
-
-    // ── Payments ──────────────────────────────────────────────────────────────
-    @GET("payments/methods")
-    suspend fun getPaymentMethods(): Response<List<PaymentMethod>>
-
-    @POST("payments/methods")
-    suspend fun createPaymentMethod(@Body request: CreatePaymentMethodRequest): Response<PaymentMethod>
-
-    @GET("payments")
-    suspend fun getPayments(
-        @Query("memberId")  memberId:  Int?    = null,
-        @Query("startDate") startDate: String? = null,
-        @Query("endDate")   endDate:   String? = null,
-    ): Response<List<Payment>>
-
-    @GET("payments/wallet/{memberId}")
-    suspend fun getMemberWallet(@Path("memberId") memberId: Int): Response<WalletBalance>
-
-    @POST("payments")
-    suspend fun createPayment(@Body request: CreatePaymentRequest): Response<Payment>
-
-    @PUT("payments/{id}")
-    suspend fun updatePayment(
-        @Path("id") id: Int,
-        @Body request: UpdatePaymentRequest,
-    ): Response<Payment>
-
-    @DELETE("payments/{id}")
-    suspend fun deletePayment(@Path("id") id: Int): Response<Unit>
 
     // ── Expenses ──────────────────────────────────────────────────────────────
     @GET("expenses/categories")
