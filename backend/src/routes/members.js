@@ -25,13 +25,15 @@ const memberSchema = z.object({
 
 const memberUpdateSchema = memberSchema.partial();
 
-function enrichMember(member, plan, lastPaymentDate) {
-  const baseDate     = lastPaymentDate ? new Date(lastPaymentDate) : new Date(member.joinDate);
-  const durationDays = plan?.durationDays ?? 30;
-  const expiry       = new Date(baseDate);
-  expiry.setDate(expiry.getDate() + durationDays);
-  const daysUntilExpiry = Math.ceil((expiry.getTime() - Date.now()) / 86400000);
-  return { ...member, plan, lastPaymentDate: lastPaymentDate ?? null, membershipExpiry: expiry.toISOString(), daysUntilExpiry };
+/**
+ * Attach plan + compute daysUntilExpiry from the stored membershipExpiry column.
+ * Expiry is now owned by the payments route (set on each payment) — not calculated here.
+ */
+function enrichMember(member, plan) {
+  const daysUntilExpiry = member.membershipExpiry
+    ? Math.ceil((new Date(member.membershipExpiry).getTime() - Date.now()) / 86400000)
+    : null;
+  return { ...member, plan, daysUntilExpiry };
 }
 
 // ── GET /api/members ───────────────────────────────────────────────────────
@@ -55,9 +57,9 @@ router.get('/', async (req, res) => {
     );
 
     const enriched = rows.map(row => {
-      const plan = { id: row.planId_, name: row.planName_, durationDays: row.planDays_, fee: row.planFee_, isActive: row.planActive_ };
+      const plan = { id: row.planId_, name: row.planName_, durationDays: row.planDays_, fee: parseFloat(row.planFee_), isActive: row.planActive_ };
       const { planId_: _1, planName_: _2, planDays_: _3, planFee_: _4, planActive_: _5, ...member } = row;
-      return enrichMember(member, plan, null);
+      return enrichMember(member, plan);
     });
 
     return res.json(enriched);
@@ -91,10 +93,10 @@ router.get('/:id', async (req, res) => {
     );
 
     const row  = mRows[0];
-    const plan = { id: row.planId_, name: row.planName_, durationDays: row.planDays_, fee: row.planFee_, isActive: row.planActive_ };
+    const plan = { id: row.planId_, name: row.planName_, durationDays: row.planDays_, fee: parseFloat(row.planFee_), isActive: row.planActive_ };
     const { planId_: _1, planName_: _2, planDays_: _3, planFee_: _4, planActive_: _5, ...member } = row;
 
-    const enriched = enrichMember(member, plan, null);
+    const enriched = enrichMember(member, plan);
     return res.json({ ...enriched, attendance: attRows });
   } catch (err) {
     console.error('[members/GET/:id]', err);

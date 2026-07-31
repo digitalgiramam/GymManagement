@@ -20,6 +20,7 @@ router.get('/stats', async (req, res) => {
       activeRes,
       inactiveRes,
       todayRes,
+      revenueRes,
       expenseRes,
       checkInsRes,
       expensesRes,
@@ -27,6 +28,7 @@ router.get('/stats', async (req, res) => {
       query(`SELECT COUNT(*)::int AS count FROM members WHERE "tenantId" = $1 AND status = 'Active'`,   [tenantId]),
       query(`SELECT COUNT(*)::int AS count FROM members WHERE "tenantId" = $1 AND status = 'Inactive'`, [tenantId]),
       query(`SELECT COUNT(*)::int AS count FROM attendance WHERE "tenantId" = $1 AND "checkedInAt" >= $2`, [tenantId, startOfDay]),
+      query(`SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE "tenantId" = $1 AND "paymentDate" >= $2`, [tenantId, startOfMonth]),
       query(`SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE "tenantId" = $1 AND "expenseDate" >= $2`,  [tenantId, startOfMonth]),
       // Last 5 check-ins
       query(
@@ -58,13 +60,16 @@ router.get('/stats', async (req, res) => {
       return { ...rest, category: { id: cid, name: cname } };
     });
 
+    const revenue  = parseFloat(revenueRes.rows[0].total);
     const expenses = parseFloat(expenseRes.rows[0].total);
 
     return res.json({
       totalActiveMembers:   activeRes.rows[0].count,
       totalInactiveMembers: inactiveRes.rows[0].count,
       todayCheckIns:        todayRes.rows[0].count,
+      currentMonthRevenue:  revenue,
       currentMonthExpenses: expenses,
+      netProfit:            revenue - expenses,
       last5CheckIns,
       last5Expenses,
     });

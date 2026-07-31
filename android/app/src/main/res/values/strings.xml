@@ -6,6 +6,7 @@
     <string name="nav_dashboard">Dashboard</string>
     <string name="nav_members">Members</string>
     <string name="nav_attendance">Attendance</string>
+    <string name="nav_payments">Payments</string>
     <string name="nav_more">More</string>
 
     <!-- Login -->
@@ -62,6 +63,11 @@
     <string name="label_select_member">Select Member</string>
     <string name="msg_checked_in">%s checked in successfully!</string>
     <string name="label_no_checkins">No check-ins today yet.</string>
+
+    <!-- Payments -->
+    <string name="title_add_payment">Record Payment</string>
+    <string name="label_no_payments">No payments recorded yet.\nTap + to add one.</string>
+    <string name="label_payment_method">Payment Method</string>
 
     <!-- Expenses -->
     <string name="title_add_expense">Add Expense</string>

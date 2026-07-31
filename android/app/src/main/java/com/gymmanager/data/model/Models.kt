@@ -177,6 +177,57 @@ data class CheckInRequest(
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  Payment
+// ─────────────────────────────────────────────────────────────────────────────
+
+data class PaymentMethod(
+    val id: Int,
+    val tenantId: Int,
+    val name: String,
+    val isActive: Boolean,
+)
+
+data class PaymentMethodSummary(
+    val id: Int,
+    val name: String,
+)
+
+data class Payment(
+    val id: Int,
+    val tenantId: Int,
+    val memberId: Int,
+    val member: MemberSummary?,
+    val planId: Int?,
+    val planDurationDays: Int,
+    val amount: Double,
+    val methodId: Int,
+    val method: PaymentMethodSummary?,
+    val notes: String?,
+    val paymentDate: String,
+    /** New membership expiry date set by this payment. */
+    val membershipExtendedTo: String?,
+)
+
+data class CreatePaymentRequest(
+    val memberId: Int,
+    val amount: Double,
+    val methodId: Int,
+    val notes: String? = null,
+    val paymentDate: String? = null,
+)
+
+data class UpdatePaymentRequest(
+    val amount: Double? = null,
+    val methodId: Int? = null,
+    val notes: String? = null,
+)
+
+data class CreatePaymentMethodRequest(
+    val name: String,
+    val isActive: Boolean = true,
+)
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  Expense
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -254,7 +305,9 @@ data class DashboardStats(
     val totalActiveMembers: Int,
     val totalInactiveMembers: Int,
     val todayCheckIns: Int,
+    val currentMonthRevenue: Double,
     val currentMonthExpenses: Double,
+    val netProfit: Double,
     val last5CheckIns: List<Attendance>,
     val last5Expenses: List<Expense>,
 )

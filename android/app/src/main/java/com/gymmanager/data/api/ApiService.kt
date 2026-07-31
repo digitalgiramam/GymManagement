@@ -130,6 +130,35 @@ interface ApiService {
     @DELETE("staff/{id}")
     suspend fun deleteStaff(@Path("id") id: Int): Response<Unit>
 
+    // ── Payments ─────────────────────────────────────────────────────────────
+    @GET("payments/methods")
+    suspend fun getPaymentMethods(): Response<List<PaymentMethod>>
+
+    @POST("payments/methods")
+    suspend fun createPaymentMethod(@Body request: CreatePaymentMethodRequest): Response<PaymentMethod>
+
+    @GET("payments/expiring")
+    suspend fun getExpiringMembers(@Query("days") days: Int = 30): Response<List<Member>>
+
+    @GET("payments")
+    suspend fun getPayments(
+        @Query("memberId")  memberId:  Int?    = null,
+        @Query("startDate") startDate: String? = null,
+        @Query("endDate")   endDate:   String? = null,
+    ): Response<List<Payment>>
+
+    @POST("payments")
+    suspend fun createPayment(@Body request: CreatePaymentRequest): Response<Payment>
+
+    @PUT("payments/{id}")
+    suspend fun updatePayment(
+        @Path("id") id: Int,
+        @Body request: UpdatePaymentRequest,
+    ): Response<Payment>
+
+    @DELETE("payments/{id}")
+    suspend fun deletePayment(@Path("id") id: Int): Response<Unit>
+
     // ── Dashboard ─────────────────────────────────────────────────────────────
     @GET("dashboard/stats")
     suspend fun getDashboardStats(): Response<DashboardStats>

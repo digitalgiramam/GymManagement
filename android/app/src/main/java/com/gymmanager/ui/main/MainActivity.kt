@@ -41,6 +41,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.dashboardFragment,
                 R.id.membersFragment,
                 R.id.attendanceFragment,
+                R.id.paymentsFragment,
                 R.id.masterFragment,
             )
         )

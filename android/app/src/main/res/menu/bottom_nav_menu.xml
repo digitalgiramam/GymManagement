@@ -13,6 +13,10 @@
         android:icon="@android:drawable/ic_menu_agenda"
         android:title="@string/nav_attendance" />
     <item
+        android:id="@+id/paymentsFragment"
+        android:icon="@android:drawable/ic_menu_set_as"
+        android:title="@string/nav_payments" />
+    <item
         android:id="@+id/masterFragment"
         android:icon="@android:drawable/ic_menu_more"
         android:title="@string/nav_more" />
