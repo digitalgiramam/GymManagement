@@ -30,6 +30,9 @@ interface ApiService {
     @GET("member-portal/me/attendance")
     suspend fun getMemberAttendance(): Response<List<Attendance>>
 
+    @GET("member-portal/me/payments")
+    suspend fun getMemberPayments(): Response<List<Payment>>
+
     // ── Onboarding ────────────────────────────────────────────────────────────
     @POST("onboarding/create-gym")
     suspend fun createGym(@Body request: CreateGymRequest): Response<CreateGymResponse>

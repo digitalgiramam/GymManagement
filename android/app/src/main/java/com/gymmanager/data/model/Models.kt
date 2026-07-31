@@ -351,4 +351,12 @@ data class MemberProfile(
     val plan: Plan?,
     val membershipExpiry: String?,
     val daysUntilExpiry: Int?,
+    /** "Full Paid" | "Partial Paid" | "Not Paid" */
+    val paymentStatus: String?,
+    /** Outstanding balance (0 if fully paid or no active subscription). */
+    val overdueAmount: Double?,
+    /** Amount paid in the latest payment. */
+    val lastPaymentAmount: Double?,
+    /** Plan fee at the time of the last payment. */
+    val lastPlanFee: Double?,
 )

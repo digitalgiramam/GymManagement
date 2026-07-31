@@ -11,4 +11,7 @@ class MemberPortalRepository(private val api: ApiService) : BaseRepository() {
 
     suspend fun getAttendance(): NetworkResult<List<Attendance>> =
         safeApiCall { api.getMemberAttendance() }
+
+    suspend fun getPayments(): NetworkResult<List<Payment>> =
+        safeApiCall { api.getMemberPayments() }
 }
