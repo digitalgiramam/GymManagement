@@ -26,14 +26,38 @@ const memberSchema = z.object({
 const memberUpdateSchema = memberSchema.partial();
 
 /**
- * Attach plan + compute daysUntilExpiry from the stored membershipExpiry column.
- * Expiry is now owned by the payments route (set on each payment) — not calculated here.
+ * Attach plan, compute daysUntilExpiry, and compute payment status from latest payment.
  */
-function enrichMember(member, plan) {
+function enrichMember(member, plan, latestPayment = null) {
   const daysUntilExpiry = member.membershipExpiry
     ? Math.ceil((new Date(member.membershipExpiry).getTime() - Date.now()) / 86400000)
     : null;
-  return { ...member, plan, daysUntilExpiry };
+
+  let paymentStatus    = 'Not Paid';
+  let lastPaymentAmount = 0;
+  let lastPlanFee       = 0;
+  let overdueAmount     = 0;
+
+  if (latestPayment) {
+    const paid    = parseFloat(latestPayment.amount)  || 0;
+    const planFee = parseFloat(latestPayment.planFee) || 0;
+    const ext     = latestPayment.membershipExtendedTo ? new Date(latestPayment.membershipExtendedTo) : null;
+    const isExpired = !ext || ext <= new Date();
+
+    lastPaymentAmount = paid;
+    lastPlanFee       = planFee;
+
+    if (isExpired) {
+      paymentStatus = 'Not Paid';
+    } else if (planFee > 0 && paid < planFee) {
+      paymentStatus = 'Partial Paid';
+      overdueAmount = planFee - paid;
+    } else {
+      paymentStatus = 'Full Paid';
+    }
+  }
+
+  return { ...member, plan, daysUntilExpiry, paymentStatus, lastPaymentAmount, lastPlanFee, overdueAmount };
 }
 
 // ── GET /api/members ───────────────────────────────────────────────────────
@@ -44,10 +68,23 @@ router.get('/', async (req, res) => {
   try {
     const { rows } = await query(
       `SELECT m.*,
-              p.id AS "planId_", p.name AS "planName_", p."durationDays" AS "planDays_",
-              p.fee AS "planFee_", p."isActive" AS "planActive_"
+              p.id          AS "planId_",
+              p.name        AS "planName_",
+              p."durationDays" AS "planDays_",
+              p.fee         AS "planFee_",
+              p."isActive"  AS "planActive_",
+              lp.amount              AS "lpAmount_",
+              lp."planFee"           AS "lpPlanFee_",
+              lp."membershipExtendedTo" AS "lpExpiry_"
        FROM members m
        JOIN plans p ON p.id = m."planId"
+       LEFT JOIN LATERAL (
+         SELECT amount, "planFee", "membershipExtendedTo"
+         FROM   payments
+         WHERE  "memberId" = m.id AND "tenantId" = m."tenantId"
+         ORDER  BY "paymentDate" DESC, id DESC
+         LIMIT  1
+       ) lp ON true
        WHERE m."tenantId" = $1
          AND ($2::text IS NULL
               OR m."fullName" ILIKE '%' || $2 || '%'
@@ -58,8 +95,12 @@ router.get('/', async (req, res) => {
 
     const enriched = rows.map(row => {
       const plan = { id: row.planId_, name: row.planName_, durationDays: row.planDays_, fee: parseFloat(row.planFee_), isActive: row.planActive_ };
-      const { planId_: _1, planName_: _2, planDays_: _3, planFee_: _4, planActive_: _5, ...member } = row;
-      return enrichMember(member, plan);
+      const latestPayment = row.lpAmount_ != null
+        ? { amount: row.lpAmount_, planFee: row.lpPlanFee_, membershipExtendedTo: row.lpExpiry_ }
+        : null;
+      const { planId_: _1, planName_: _2, planDays_: _3, planFee_: _4, planActive_: _5,
+              lpAmount_: _6, lpPlanFee_: _7, lpExpiry_: _8, ...member } = row;
+      return enrichMember(member, plan, latestPayment);
     });
 
     return res.json(enriched);
@@ -78,10 +119,23 @@ router.get('/:id', async (req, res) => {
   try {
     const { rows: mRows } = await query(
       `SELECT m.*,
-              p.id AS "planId_", p.name AS "planName_", p."durationDays" AS "planDays_",
-              p.fee AS "planFee_", p."isActive" AS "planActive_"
+              p.id          AS "planId_",
+              p.name        AS "planName_",
+              p."durationDays" AS "planDays_",
+              p.fee         AS "planFee_",
+              p."isActive"  AS "planActive_",
+              lp.amount              AS "lpAmount_",
+              lp."planFee"           AS "lpPlanFee_",
+              lp."membershipExtendedTo" AS "lpExpiry_"
        FROM members m
        JOIN plans p ON p.id = m."planId"
+       LEFT JOIN LATERAL (
+         SELECT amount, "planFee", "membershipExtendedTo"
+         FROM   payments
+         WHERE  "memberId" = m.id AND "tenantId" = m."tenantId"
+         ORDER  BY "paymentDate" DESC, id DESC
+         LIMIT  1
+       ) lp ON true
        WHERE m.id = $1 AND m."tenantId" = $2`,
       [id, tenantId],
     );
@@ -94,9 +148,13 @@ router.get('/:id', async (req, res) => {
 
     const row  = mRows[0];
     const plan = { id: row.planId_, name: row.planName_, durationDays: row.planDays_, fee: parseFloat(row.planFee_), isActive: row.planActive_ };
-    const { planId_: _1, planName_: _2, planDays_: _3, planFee_: _4, planActive_: _5, ...member } = row;
+    const latestPayment = row.lpAmount_ != null
+      ? { amount: row.lpAmount_, planFee: row.lpPlanFee_, membershipExtendedTo: row.lpExpiry_ }
+      : null;
+    const { planId_: _1, planName_: _2, planDays_: _3, planFee_: _4, planActive_: _5,
+            lpAmount_: _6, lpPlanFee_: _7, lpExpiry_: _8, ...member } = row;
 
-    const enriched = enrichMember(member, plan);
+    const enriched = enrichMember(member, plan, latestPayment);
     return res.json({ ...enriched, attendance: attRows });
   } catch (err) {
     console.error('[members/GET/:id]', err);

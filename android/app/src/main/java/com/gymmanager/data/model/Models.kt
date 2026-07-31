@@ -114,11 +114,16 @@ data class Member(
     val joinDate: String,
     val planId: Int,
     val plan: Plan?,
-    val status: String,         // "Active" | "Inactive"
+    val status: String,              // "Active" | "Inactive"
     val createdAt: String,
     val lastPaymentDate: String?,
     val membershipExpiry: String?,
     val daysUntilExpiry: Int?,
+    /** "Full Paid" | "Partial Paid" | "Not Paid" */
+    val paymentStatus: String?       = null,
+    val lastPaymentAmount: Double?   = null,
+    val lastPlanFee: Double?         = null,
+    val overdueAmount: Double?       = null,
 )
 
 data class MemberDetail(
@@ -137,6 +142,11 @@ data class MemberDetail(
     val membershipExpiry: String?,
     val daysUntilExpiry: Int?,
     val attendance: List<Attendance>,
+    /** "Full Paid" | "Partial Paid" | "Not Paid" */
+    val paymentStatus: String?       = null,
+    val lastPaymentAmount: Double?   = null,
+    val lastPlanFee: Double?         = null,
+    val overdueAmount: Double?       = null,
 )
 
 data class CreateMemberRequest(

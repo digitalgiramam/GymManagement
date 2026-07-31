@@ -5,9 +5,11 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymmanager.data.model.MemberDetail
+import com.gymmanager.data.model.Payment
 import com.gymmanager.data.model.Plan
 import com.gymmanager.data.model.UpdateMemberRequest
 import com.gymmanager.data.repository.MemberRepository
+import com.gymmanager.data.repository.PaymentRepository
 import com.gymmanager.data.repository.PlanRepository
 import com.gymmanager.utils.NetworkResult
 import kotlinx.coroutines.launch
@@ -15,6 +17,7 @@ import kotlinx.coroutines.launch
 class MemberDetailViewModel(
     private val repository: MemberRepository,
     private val planRepository: PlanRepository,
+    private val paymentRepository: PaymentRepository,
 ) : ViewModel() {
 
     private val _member = MutableLiveData<NetworkResult<MemberDetail>>()
@@ -26,12 +29,17 @@ class MemberDetailViewModel(
     private val _updateResult = MutableLiveData<NetworkResult<Any>>()
     val updateResult: LiveData<NetworkResult<Any>> = _updateResult
 
+    private val _payments = MutableLiveData<NetworkResult<List<Payment>>>()
+    val payments: LiveData<NetworkResult<List<Payment>>> = _payments
+
     init { loadPlans() }
 
     fun loadMember(id: Int) {
         _member.value = NetworkResult.Loading
         viewModelScope.launch {
             _member.value = repository.getMemberDetail(id)
+            // Load payments in parallel
+            _payments.value = paymentRepository.getPayments(memberId = id)
         }
     }
 

@@ -76,13 +76,36 @@
                 android:layout_marginTop="1dp" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/tvStatus"
+        <!-- Right column: member status + payment badge -->
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:textSize="12sp"
-            android:textStyle="bold" />
+            android:orientation="vertical"
+            android:gravity="end"
+            android:layout_marginStart="8dp">
+
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvPaymentStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF"
+                android:background="@drawable/bg_status_active"
+                android:visibility="gone" />
+        </LinearLayout>
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

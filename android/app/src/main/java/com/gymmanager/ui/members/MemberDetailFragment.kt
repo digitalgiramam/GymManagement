@@ -1,6 +1,7 @@
 package com.gymmanager.ui.members
 
 import android.app.DatePickerDialog
+import android.graphics.Color
 import android.os.Bundle
 import android.view.*
 import android.widget.ArrayAdapter
@@ -8,6 +9,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.gymmanager.R
@@ -18,6 +20,7 @@ import com.gymmanager.databinding.DialogEditMemberBinding
 import com.gymmanager.databinding.FragmentMemberDetailBinding
 import com.gymmanager.gymApp
 import com.gymmanager.ui.attendance.AttendanceAdapter
+import com.gymmanager.ui.member.MemberPaymentAdapter
 import com.gymmanager.utils.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -32,16 +35,19 @@ class MemberDetailFragment : Fragment() {
     private val viewModel: MemberDetailViewModel by lazy {
         ViewModelProvider(this, object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                val app = requireContext().gymApp
                 @Suppress("UNCHECKED_CAST")
                 return MemberDetailViewModel(
-                    requireContext().gymApp.memberRepository,
-                    requireContext().gymApp.planRepository,
+                    app.memberRepository,
+                    app.planRepository,
+                    app.paymentRepository,
                 ) as T
             }
         })[MemberDetailViewModel::class.java]
     }
 
     private val attendanceAdapter = AttendanceAdapter()
+    private val paymentAdapter    = MemberPaymentAdapter()
 
     /** Cached member for the edit dialog */
     private var currentMember: MemberDetail? = null
@@ -64,11 +70,23 @@ class MemberDetailFragment : Fragment() {
             isNestedScrollingEnabled = false
         }
 
+        binding.rvDetailPayments.apply {
+            adapter = paymentAdapter
+            layoutManager = LinearLayoutManager(requireContext())
+            isNestedScrollingEnabled = false
+        }
+
         binding.swipeRefresh.setOnRefreshListener { viewModel.loadMember(memberId) }
 
         binding.btnEdit.setOnClickListener {
             val m = currentMember ?: return@setOnClickListener
             showEditDialog(m)
+        }
+
+        // "Add" button navigates to Payments tab with this member pre-selected
+        binding.btnAddPayment.setOnClickListener {
+            // Navigate to payments fragment — pass memberId so it can pre-select
+            findNavController().navigate(R.id.paymentsFragment)
         }
 
         viewModel.plans.observe(viewLifecycleOwner) { availablePlans = it }
@@ -89,6 +107,15 @@ class MemberDetailFragment : Fragment() {
             }
         }
 
+        viewModel.payments.observe(viewLifecycleOwner) { result ->
+            if (result is NetworkResult.Success) {
+                val list = result.data
+                paymentAdapter.submitList(list)
+                binding.tvNoDetailPayments.visibility =
+                    if (list.isEmpty()) View.VISIBLE else View.GONE
+            }
+        }
+
         viewModel.updateResult.observe(viewLifecycleOwner) { result ->
             when (result) {
                 is NetworkResult.Success ->
@@ -103,6 +130,8 @@ class MemberDetailFragment : Fragment() {
     }
 
     private fun bindMember(m: MemberDetail) {
+        val symbol = requireContext().gymApp.tokenManager.getCurrencySymbol()
+
         binding.tvName.text     = m.fullName
         binding.tvPhone.text    = m.phone
         binding.tvEmail.text    = m.email ?: "—"
@@ -135,10 +164,59 @@ class MemberDetailFragment : Fragment() {
             viewModel.toggleStatus(m.id, m.status)
         }
 
+        // ── Payment Status card ─────────────────────────────────────────────
+        val payStatus = m.paymentStatus ?: "Not Paid"
+        binding.tvDetailPaymentBadge.text = payStatus
+        binding.tvDetailPaymentBadge.setBackgroundResource(
+            when (payStatus) {
+                "Full Paid"    -> R.drawable.bg_status_active
+                "Partial Paid" -> R.drawable.bg_status_partial
+                else           -> R.drawable.bg_status_overdue
+            }
+        )
+
+        binding.tvDetailLastAmount.text =
+            m.lastPaymentAmount?.toCurrencyString(symbol) ?: "—"
+        binding.tvDetailPlanFee.text =
+            m.lastPlanFee?.toCurrencyString(symbol) ?: "—"
+
+        val balance = m.overdueAmount ?: 0.0
+        if (payStatus == "Partial Paid" && balance > 0) {
+            binding.rowDetailBalance.visibility = View.VISIBLE
+            binding.tvDetailBalance.text = balance.toCurrencyString(symbol)
+        } else {
+            binding.rowDetailBalance.visibility = View.GONE
+        }
+
+        // Subscription valid-until (membership expiry)
+        val expiryIso = m.membershipExpiry
+        if (expiryIso != null) {
+            binding.tvDetailPaymentExpiry.text = formatDate(expiryIso)
+            val isExpired = try {
+                val df = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+                df.timeZone = TimeZone.getTimeZone("UTC")
+                !(df.parse(expiryIso) ?: Date(0)).after(Date())
+            } catch (_: Exception) { true }
+            binding.tvDetailPaymentExpiry.setTextColor(
+                if (isExpired) Color.parseColor("#C62828") else Color.parseColor("#2E7D32")
+            )
+        } else {
+            binding.tvDetailPaymentExpiry.text = "—"
+        }
+
         attendanceAdapter.submitList(m.attendance)
     }
 
-    // ── Edit dialog with date picker ───────────────────────────────────────
+    private fun formatDate(iso: String): String = try {
+        val parserZ  = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+            .also { it.timeZone = TimeZone.getTimeZone("UTC") }
+        val parserMs = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+        val display  = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+        val date = runCatching { parserZ.parse(iso)!! }.getOrNull() ?: parserMs.parse(iso)!!
+        display.format(date)
+    } catch (_: Exception) { iso.take(10) }
+
+    // ── Edit dialog ────────────────────────────────────────────────────────
     private fun showEditDialog(m: MemberDetail) {
         if (availablePlans.isEmpty()) {
             binding.root.showSnackbarError("Plans not loaded yet — try again.")
@@ -150,19 +228,16 @@ class MemberDetailFragment : Fragment() {
             .apply { timeZone = TimeZone.getTimeZone("UTC") }
         val dispFmt = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
 
-        // Pre-fill fields
         db.etFullName.setText(m.fullName)
         db.etPhone.setText(m.phone)
         db.etEmail.setText(m.email ?: "")
         db.etLocation.setText(m.location ?: "")
         db.switchActive.isChecked = m.status == "Active"
 
-        // Parse current joinDate into a Calendar
         val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
         try { cal.time = isoFmt.parse(m.joinDate) ?: Date() } catch (_: Exception) {}
         db.etJoinDate.setText(dispFmt.format(cal.time))
 
-        // Plan spinner — pre-select current plan
         val planNames = availablePlans.map { "${it.name} (${it.durationDays}d)" }
         db.spinnerPlan.adapter = ArrayAdapter(
             requireContext(), android.R.layout.simple_spinner_item, planNames,
@@ -170,7 +245,6 @@ class MemberDetailFragment : Fragment() {
         val planIdx = availablePlans.indexOfFirst { it.id == m.planId }.coerceAtLeast(0)
         db.spinnerPlan.setSelection(planIdx)
 
-        // Date picker — opens when user taps the join date field
         db.etJoinDate.setOnClickListener {
             DatePickerDialog(
                 requireContext(),

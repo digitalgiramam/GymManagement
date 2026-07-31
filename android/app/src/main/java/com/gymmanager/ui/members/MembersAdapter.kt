@@ -1,6 +1,7 @@
 package com.gymmanager.ui.members
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
@@ -52,6 +53,22 @@ class MembersAdapter(
             }
             b.tvExpiry.text = expiryText
             b.tvExpiry.setTextColor(ContextCompat.getColor(ctx, expiryColor))
+
+            // Payment status badge
+            val payStatus = member.paymentStatus
+            if (payStatus != null) {
+                b.tvPaymentStatus.visibility = View.VISIBLE
+                b.tvPaymentStatus.text = payStatus
+                b.tvPaymentStatus.setBackgroundResource(
+                    when (payStatus) {
+                        "Full Paid"    -> R.drawable.bg_status_active
+                        "Partial Paid" -> R.drawable.bg_status_partial
+                        else           -> R.drawable.bg_status_overdue  // "Not Paid"
+                    }
+                )
+            } else {
+                b.tvPaymentStatus.visibility = View.GONE
+            }
 
             b.root.setOnClickListener     { onItemClick(member) }
             b.root.setOnLongClickListener { onItemLongClick(member); true }
