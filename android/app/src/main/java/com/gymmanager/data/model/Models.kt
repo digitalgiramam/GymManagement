@@ -325,6 +325,8 @@ data class UpdateStaffRequest(
     val phone: String? = null,
     val role: String? = null,
     val notes: String? = null,
+    /** Set a new login password — null = leave unchanged */
+    val password: String? = null,
 )
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import com.gymmanager.data.model.Staff
 import com.gymmanager.databinding.ItemStaffBinding
 
 class StaffAdapter(
+    private val onEdit:   (Staff) -> Unit,
     private val onDelete: (Staff) -> Unit,
 ) : ListAdapter<Staff, StaffAdapter.ViewHolder>(DIFF) {
 
@@ -20,6 +21,7 @@ class StaffAdapter(
             binding.tvStaffEmail.text = staff.email
             binding.tvStaffPhone.text = staff.phone ?: "—"
             binding.tvStaffRole.text  = staff.role.replace("_", " ")
+            binding.root.setOnClickListener      { onEdit(staff) }
             binding.btnDeleteStaff.setOnClickListener { onDelete(staff) }
         }
     }

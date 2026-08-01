@@ -7,10 +7,12 @@ import androidx.lifecycle.viewModelScope
 import com.gymmanager.data.model.MemberDetail
 import com.gymmanager.data.model.Payment
 import com.gymmanager.data.model.Plan
+import com.gymmanager.data.model.Staff
 import com.gymmanager.data.model.UpdateMemberRequest
 import com.gymmanager.data.repository.MemberRepository
 import com.gymmanager.data.repository.PaymentRepository
 import com.gymmanager.data.repository.PlanRepository
+import com.gymmanager.data.repository.StaffRepository
 import com.gymmanager.utils.NetworkResult
 import kotlinx.coroutines.launch
 
@@ -18,6 +20,7 @@ class MemberDetailViewModel(
     private val repository: MemberRepository,
     private val planRepository: PlanRepository,
     private val paymentRepository: PaymentRepository,
+    private val staffRepository: StaffRepository,
 ) : ViewModel() {
 
     private val _member = MutableLiveData<NetworkResult<MemberDetail>>()
@@ -26,13 +29,19 @@ class MemberDetailViewModel(
     private val _plans = MutableLiveData<List<Plan>>(emptyList())
     val plans: LiveData<List<Plan>> = _plans
 
+    private val _trainers = MutableLiveData<List<Staff>>(emptyList())
+    val trainers: LiveData<List<Staff>> = _trainers
+
     private val _updateResult = MutableLiveData<NetworkResult<Any>>()
     val updateResult: LiveData<NetworkResult<Any>> = _updateResult
 
     private val _payments = MutableLiveData<NetworkResult<List<Payment>>>()
     val payments: LiveData<NetworkResult<List<Payment>>> = _payments
 
-    init { loadPlans() }
+    init {
+        loadPlans()
+        loadTrainers()
+    }
 
     fun loadMember(id: Int) {
         _member.value = NetworkResult.Loading
@@ -47,6 +56,15 @@ class MemberDetailViewModel(
         viewModelScope.launch {
             val result = planRepository.getPlans()
             if (result is NetworkResult.Success) _plans.value = result.data
+        }
+    }
+
+    private fun loadTrainers() {
+        viewModelScope.launch {
+            val result = staffRepository.getStaff()
+            if (result is NetworkResult.Success) {
+                _trainers.value = result.data.filter { it.role == "TRAINER" }
+            }
         }
     }
 

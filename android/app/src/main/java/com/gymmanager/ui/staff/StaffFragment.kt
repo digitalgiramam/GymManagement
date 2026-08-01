@@ -12,12 +12,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.gymmanager.data.model.CreateStaffRequest
 import com.gymmanager.data.model.Staff
+import com.gymmanager.data.model.UpdateStaffRequest
 import com.gymmanager.databinding.DialogAddStaffBinding
+import com.gymmanager.databinding.DialogEditStaffBinding
 import com.gymmanager.databinding.FragmentStaffBinding
 import com.gymmanager.gymApp
 import com.gymmanager.utils.NetworkResult
 import com.gymmanager.utils.hide
 import com.gymmanager.utils.show
+import com.gymmanager.utils.showSnackbar
 import com.gymmanager.utils.showSnackbarError
 
 class StaffFragment : Fragment() {
@@ -46,7 +49,10 @@ class StaffFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        adapter = StaffAdapter(onDelete = { staff -> confirmDelete(staff) })
+        adapter = StaffAdapter(
+            onEdit   = { staff -> showEditStaffDialog(staff) },
+            onDelete = { staff -> confirmDelete(staff) },
+        )
         binding.rvStaff.adapter = adapter
 
         binding.fabAddStaff.setOnClickListener { showAddStaffDialog() }
@@ -75,7 +81,8 @@ class StaffFragment : Fragment() {
 
         viewModel.actionResult.observe(viewLifecycleOwner) { result ->
             when (result) {
-                is NetworkResult.Error -> binding.root.showSnackbarError(result.message)
+                is NetworkResult.Success -> binding.root.showSnackbar("Staff updated.")
+                is NetworkResult.Error   -> binding.root.showSnackbarError(result.message)
                 else -> {}
             }
             if (result != null) viewModel.clearActionResult()
@@ -111,6 +118,51 @@ class StaffFragment : Fragment() {
                         role     = role,
                         notes    = notes?.ifBlank { null },
                         password = password?.ifBlank { null },
+                    )
+                )
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showEditStaffDialog(staff: Staff) {
+        val db = DialogEditStaffBinding.inflate(layoutInflater)
+        val roles = listOf("RECEPTIONIST", "TRAINER", "OWNER")
+
+        // Pre-fill current values
+        db.etStaffName.setText(staff.fullName)
+        db.etStaffEmail.setText(staff.email)
+        db.etStaffPhone.setText(staff.phone ?: "")
+        db.etStaffNotes.setText(staff.notes ?: "")
+        db.spinnerRole.adapter = ArrayAdapter(
+            requireContext(), android.R.layout.simple_spinner_item, roles,
+        ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        db.spinnerRole.setSelection(roles.indexOf(staff.role).coerceAtLeast(0))
+        // etStaffPassword left blank — blank means "keep existing password"
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Edit ${staff.fullName}")
+            .setView(db.root)
+            .setPositiveButton("Save") { _, _ ->
+                val name  = db.etStaffName.text?.toString()?.trim() ?: ""
+                val email = db.etStaffEmail.text?.toString()?.trim() ?: ""
+                val phone = db.etStaffPhone.text?.toString()?.trim()
+                val role  = roles[db.spinnerRole.selectedItemPosition]
+                val notes = db.etStaffNotes.text?.toString()?.trim()
+                val pass  = db.etStaffPassword.text?.toString()?.trim()
+
+                if (name.isBlank())  { binding.root.showSnackbarError("Name is required");  return@setPositiveButton }
+                if (email.isBlank()) { binding.root.showSnackbarError("Email is required"); return@setPositiveButton }
+
+                viewModel.updateStaff(
+                    staff.id,
+                    UpdateStaffRequest(
+                        fullName = name,
+                        email    = email,
+                        phone    = phone?.ifBlank { null },
+                        role     = role,
+                        notes    = notes?.ifBlank { null },
+                        password = pass?.ifBlank { null },   // null = keep existing hash
                     )
                 )
             }

@@ -25,6 +25,12 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+// Members may log in with email OR phone — no format restriction on the identifier
+const memberLoginSchema = z.object({
+  email:    z.string().min(1, 'Email or phone is required'),
+  password: z.string().min(1, 'Password is required'),
+});
+
 function makeToken(payload) {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '30d' });
 }
@@ -111,13 +117,17 @@ router.post('/staff-login', async (req, res) => {
 
 // ── POST /api/auth/member-login ────────────────────────────────────────────
 router.post('/member-login', async (req, res) => {
-  const parsed = loginSchema.safeParse(req.body);
+  const parsed = memberLoginSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
 
   const { email, password } = parsed.data;
 
   try {
-    const { rows } = await query(`SELECT * FROM members WHERE email = $1 LIMIT 1`, [email]);
+    // Accept email OR phone as the login identifier
+    const { rows } = await query(
+      `SELECT * FROM members WHERE (email = $1 OR phone = $1) LIMIT 1`,
+      [email],
+    );
     const member = rows[0];
     if (!member || !member.passwordHash) {
       return res.status(401).json({ error: 'Invalid email or password, or login not enabled for this account.' });

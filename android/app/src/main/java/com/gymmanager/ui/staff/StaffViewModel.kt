@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymmanager.data.model.CreateStaffRequest
 import com.gymmanager.data.model.Staff
+import com.gymmanager.data.model.UpdateStaffRequest
 import com.gymmanager.data.repository.StaffRepository
 import com.gymmanager.utils.NetworkResult
 import kotlinx.coroutines.launch
@@ -41,6 +42,15 @@ class StaffViewModel(private val repository: StaffRepository) : ViewModel() {
     fun addStaff(request: CreateStaffRequest) {
         viewModelScope.launch {
             val result = repository.createStaff(request)
+            @Suppress("UNCHECKED_CAST")
+            _actionResult.value = result as NetworkResult<Any>
+            if (result is NetworkResult.Success) loadStaff()
+        }
+    }
+
+    fun updateStaff(id: Int, request: UpdateStaffRequest) {
+        viewModelScope.launch {
+            val result = repository.updateStaff(id, request)
             @Suppress("UNCHECKED_CAST")
             _actionResult.value = result as NetworkResult<Any>
             if (result is NetworkResult.Success) loadStaff()

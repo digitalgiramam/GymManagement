@@ -15,6 +15,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.gymmanager.R
 import com.gymmanager.data.model.MemberDetail
 import com.gymmanager.data.model.Plan
+import com.gymmanager.data.model.Staff
 import com.gymmanager.data.model.UpdateMemberRequest
 import com.gymmanager.databinding.DialogEditMemberBinding
 import com.gymmanager.databinding.FragmentMemberDetailBinding
@@ -41,6 +42,7 @@ class MemberDetailFragment : Fragment() {
                     app.memberRepository,
                     app.planRepository,
                     app.paymentRepository,
+                    app.staffRepository,
                 ) as T
             }
         })[MemberDetailViewModel::class.java]
@@ -51,7 +53,8 @@ class MemberDetailFragment : Fragment() {
 
     /** Cached member for the edit dialog */
     private var currentMember: MemberDetail? = null
-    private var availablePlans: List<Plan> = emptyList()
+    private var availablePlans: List<Plan>     = emptyList()
+    private var availableTrainers: List<Staff> = emptyList()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -89,7 +92,8 @@ class MemberDetailFragment : Fragment() {
             findNavController().navigate(R.id.paymentsFragment)
         }
 
-        viewModel.plans.observe(viewLifecycleOwner) { availablePlans = it }
+        viewModel.plans.observe(viewLifecycleOwner)    { availablePlans = it }
+        viewModel.trainers.observe(viewLifecycleOwner) { availableTrainers = it }
 
         viewModel.member.observe(viewLifecycleOwner) { result ->
             binding.swipeRefresh.isRefreshing = false
@@ -245,6 +249,15 @@ class MemberDetailFragment : Fragment() {
         val planIdx = availablePlans.indexOfFirst { it.id == m.planId }.coerceAtLeast(0)
         db.spinnerPlan.setSelection(planIdx)
 
+        // Trainer spinner: "(No trainer)" + each TRAINER staff member
+        val trainerEntries = listOf("(No trainer)") + availableTrainers.map { it.fullName }
+        db.spinnerTrainer.adapter = ArrayAdapter(
+            requireContext(), android.R.layout.simple_spinner_item, trainerEntries,
+        ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        val trainerIdx = if (m.trainerId == null) 0
+            else (availableTrainers.indexOfFirst { it.id == m.trainerId } + 1).coerceAtLeast(0)
+        db.spinnerTrainer.setSelection(trainerIdx)
+
         db.etJoinDate.setOnClickListener {
             DatePickerDialog(
                 requireContext(),
@@ -269,21 +282,27 @@ class MemberDetailFragment : Fragment() {
                     binding.root.showSnackbarError("Name and phone are required.")
                     return@setPositiveButton
                 }
-                val email    = db.etEmail.text?.toString()?.trim()
-                val location = db.etLocation.text?.toString()?.trim()
-                val status   = if (db.switchActive.isChecked) "Active" else "Inactive"
-                val plan     = availablePlans[db.spinnerPlan.selectedItemPosition]
+                val email     = db.etEmail.text?.toString()?.trim()
+                val location  = db.etLocation.text?.toString()?.trim()
+                val status    = if (db.switchActive.isChecked) "Active" else "Inactive"
+                val plan      = availablePlans[db.spinnerPlan.selectedItemPosition]
+                val trainerPos = db.spinnerTrainer.selectedItemPosition
+                val trainerId  = if (trainerPos == 0) null
+                    else availableTrainers.getOrNull(trainerPos - 1)?.id
+                val password   = db.etPassword.text?.toString()?.trim()?.ifBlank { null }
 
                 viewModel.updateMember(
                     m.id,
                     UpdateMemberRequest(
-                        fullName = fullName,
-                        phone    = phone,
-                        email    = email?.ifBlank { null },
-                        location = location?.ifBlank { null },
-                        planId   = plan.id,
-                        status   = status,
-                        joinDate = isoFmt.format(cal.time),
+                        fullName  = fullName,
+                        phone     = phone,
+                        email     = email?.ifBlank { null },
+                        location  = location?.ifBlank { null },
+                        planId    = plan.id,
+                        status    = status,
+                        joinDate  = isoFmt.format(cal.time),
+                        trainerId = trainerId,
+                        password  = password,
                     )
                 )
             }
