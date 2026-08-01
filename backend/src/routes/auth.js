@@ -1,5 +1,5 @@
 /**
- * Auth routes
+ * Auth routes — v2 (member login accepts email OR phone)
  * POST /api/auth/register     — gym owner registration
  * POST /api/auth/login        — gym owner login
  * POST /api/auth/staff-login  — staff login

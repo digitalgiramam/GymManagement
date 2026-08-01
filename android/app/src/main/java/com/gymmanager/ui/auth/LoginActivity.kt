@@ -2,6 +2,7 @@ package com.gymmanager.ui.auth
 
 import android.content.Intent
 import android.os.Bundle
+import android.text.InputType
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModel
@@ -78,9 +79,20 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun updateModeUI() {
-        val isOwner = selectedRole == LoginRole.OWNER
+        val isOwner  = selectedRole == LoginRole.OWNER
+        val isMember = selectedRole == LoginRole.MEMBER
+
         // Register mode only available for owners
         binding.tvToggleMode.visibility = if (isOwner) View.VISIBLE else View.GONE
+
+        // For members: allow phone number entry — switch to plain text input type
+        if (isMember) {
+            binding.tilEmail.hint = "Email or Phone"
+            binding.etEmail.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+        } else {
+            binding.tilEmail.hint = "Email"
+            binding.etEmail.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+        }
 
         if (isRegisterMode && isOwner) {
             binding.tilName.visibility = View.VISIBLE
