@@ -41,7 +41,11 @@ app.use(cors({
 app.use(express.json({ limit: '1mb' }));
 
 // ── Health check (no auth required) ───────────────────────────────────────
-app.get('/api/health', (_req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
+app.get('/api/health', (_req, res) => res.json({
+  status: 'ok',
+  version: 'auth-v2-phone-login',   // bump this on every deploy to verify what's live
+  ts: new Date().toISOString(),
+}));
 
 // ── Public routes ──────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
