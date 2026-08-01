@@ -151,11 +151,10 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun navigateNext() {
-        val role = gymApp.tokenManager.getRole()
-        val destination = when (role) {
-            "STAFF"  -> Intent(this, StaffDashboardActivity::class.java)
-            "MEMBER" -> Intent(this, MemberPortalActivity::class.java)
-            else     -> {
+        val destination = when {
+            gymApp.tokenManager.isStaff()  -> Intent(this, StaffDashboardActivity::class.java)
+            gymApp.tokenManager.isMember() -> Intent(this, MemberPortalActivity::class.java)
+            else -> {
                 // OWNER
                 if (gymApp.tokenManager.hasCompletedOnboarding()) {
                     Intent(this, MainActivity::class.java)

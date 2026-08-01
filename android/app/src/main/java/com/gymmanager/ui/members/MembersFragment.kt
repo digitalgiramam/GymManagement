@@ -15,6 +15,7 @@ import com.gymmanager.R
 import com.gymmanager.data.model.CreateMemberRequest
 import com.gymmanager.data.model.Member
 import com.gymmanager.data.model.Plan
+import com.gymmanager.data.model.Staff
 import com.gymmanager.data.model.UpdateMemberRequest
 import com.gymmanager.databinding.DialogAddMemberBinding
 import com.gymmanager.databinding.DialogEditMemberBinding
@@ -37,17 +38,20 @@ class MembersFragment : Fragment() {
     private val viewModel: MembersViewModel by lazy {
         ViewModelProvider(this, object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                val app = requireContext().gymApp
                 @Suppress("UNCHECKED_CAST")
                 return MembersViewModel(
-                    requireContext().gymApp.memberRepository,
-                    requireContext().gymApp.planRepository,
+                    app.memberRepository,
+                    app.planRepository,
+                    app.staffRepository,
                 ) as T
             }
         })[MembersViewModel::class.java]
     }
 
     private lateinit var adapter: MembersAdapter
-    private var availablePlans: List<Plan> = emptyList()
+    private var availablePlans: List<Plan>    = emptyList()
+    private var availableTrainers: List<Staff> = emptyList()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -61,21 +65,19 @@ class MembersFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         adapter = MembersAdapter(
-            onItemClick      = { member ->
+            onItemClick     = { member ->
                 findNavController().navigate(
                     R.id.action_membersFragment_to_memberDetailFragment,
                     bundleOf("memberId" to member.id),
                 )
             },
-            onItemLongClick  = { member -> showMemberOptions(member) },
+            onItemLongClick = { member -> showMemberOptions(member) },
         )
         binding.rvMembers.adapter = adapter
 
         binding.swipeRefresh.setOnRefreshListener { viewModel.loadMembers() }
-
         binding.fabAddMember.setOnClickListener { showAddMemberDialog() }
 
-        // Search
         binding.searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?) = false
             override fun onQueryTextChange(newText: String?): Boolean {
@@ -90,6 +92,10 @@ class MembersFragment : Fragment() {
                 is NetworkResult.Error   -> binding.root.showSnackbarError("Plans failed to load: ${result.message}")
                 else -> Unit
             }
+        }
+
+        viewModel.trainers.observe(viewLifecycleOwner) { trainers ->
+            availableTrainers = trainers
         }
 
         viewModel.members.observe(viewLifecycleOwner) { result ->
@@ -118,7 +124,7 @@ class MembersFragment : Fragment() {
         }
     }
 
-    // ── Long-press options menu ────────────────────────────────────────────
+    // ── Long-press options ─────────────────────────────────────────────────
     private fun showMemberOptions(member: Member) {
         val options = arrayOf(getString(R.string.action_edit), getString(R.string.action_delete))
         MaterialAlertDialogBuilder(requireContext())
@@ -132,6 +138,25 @@ class MembersFragment : Fragment() {
             .show()
     }
 
+    // ── Trainer spinner helpers ────────────────────────────────────────────
+
+    /** Entries: ["(No trainer)", "Alice (TRAINER)", …] */
+    private fun buildTrainerSpinnerEntries(): Array<String> {
+        val none = listOf("(No trainer)")
+        return (none + availableTrainers.map { it.fullName }).toTypedArray()
+    }
+
+    /** Returns the trainerIdx's Staff, or null if the first "(No trainer)" is selected. */
+    private fun selectedTrainerId(position: Int): Int? =
+        if (position == 0) null else availableTrainers.getOrNull(position - 1)?.id
+
+    /** Returns the spinner position for a given trainerId (0 = no trainer). */
+    private fun trainerSpinnerPosition(trainerId: Int?): Int {
+        if (trainerId == null) return 0
+        val idx = availableTrainers.indexOfFirst { it.id == trainerId }
+        return if (idx >= 0) idx + 1 else 0
+    }
+
     // ── Edit member dialog ─────────────────────────────────────────────────
     private fun showEditMemberDialog(member: Member) {
         if (availablePlans.isEmpty()) {
@@ -139,33 +164,34 @@ class MembersFragment : Fragment() {
             return
         }
 
-        val db = DialogEditMemberBinding.inflate(layoutInflater)
-        val isoFmt  = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
-        }
+        val db      = DialogEditMemberBinding.inflate(layoutInflater)
+        val isoFmt  = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+            .apply { timeZone = TimeZone.getTimeZone("UTC") }
         val dispFmt = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
 
-        // Pre-fill existing values
         db.etFullName.setText(member.fullName)
         db.etPhone.setText(member.phone)
         db.etEmail.setText(member.email ?: "")
         db.etLocation.setText(member.location ?: "")
         db.switchActive.isChecked = member.status == "Active"
 
-        // Parse stored joinDate for display
         val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
         try { cal.time = isoFmt.parse(member.joinDate) ?: Date() } catch (_: Exception) {}
         db.etJoinDate.setText(dispFmt.format(cal.time))
 
-        // Plan spinner — select current plan
+        // Plan spinner
         val planNames = availablePlans.map { "${it.name} (${it.durationDays}d)" }
         db.spinnerPlan.adapter = ArrayAdapter(
-            requireContext(), android.R.layout.simple_spinner_item, planNames
+            requireContext(), android.R.layout.simple_spinner_item, planNames,
         ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
-        val currentPlanIdx = availablePlans.indexOfFirst { it.id == member.planId }.coerceAtLeast(0)
-        db.spinnerPlan.setSelection(currentPlanIdx)
+        db.spinnerPlan.setSelection(availablePlans.indexOfFirst { it.id == member.planId }.coerceAtLeast(0))
 
-        // Join date picker
+        // Trainer spinner
+        db.spinnerTrainer.adapter = ArrayAdapter(
+            requireContext(), android.R.layout.simple_spinner_item, buildTrainerSpinnerEntries(),
+        ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        db.spinnerTrainer.setSelection(trainerSpinnerPosition(member.trainerId))
+
         db.etJoinDate.setOnClickListener {
             DatePickerDialog(
                 requireContext(),
@@ -173,9 +199,7 @@ class MembersFragment : Fragment() {
                     cal.set(y, m, d, 0, 0, 0); cal.set(Calendar.MILLISECOND, 0)
                     db.etJoinDate.setText(dispFmt.format(cal.time))
                 },
-                cal.get(Calendar.YEAR),
-                cal.get(Calendar.MONTH),
-                cal.get(Calendar.DAY_OF_MONTH),
+                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH),
             ).show()
         }
 
@@ -189,21 +213,25 @@ class MembersFragment : Fragment() {
                     binding.root.showSnackbarError("Name and phone are required.")
                     return@setPositiveButton
                 }
-                val email    = db.etEmail.text?.toString()?.trim()
-                val location = db.etLocation.text?.toString()?.trim()
-                val status   = if (db.switchActive.isChecked) "Active" else "Inactive"
-                val plan     = availablePlans[db.spinnerPlan.selectedItemPosition]
+                val email     = db.etEmail.text?.toString()?.trim()
+                val location  = db.etLocation.text?.toString()?.trim()
+                val status    = if (db.switchActive.isChecked) "Active" else "Inactive"
+                val plan      = availablePlans[db.spinnerPlan.selectedItemPosition]
+                val trainerId = selectedTrainerId(db.spinnerTrainer.selectedItemPosition)
+                val password  = db.etPassword.text?.toString()?.trim()?.ifBlank { null }
 
                 viewModel.updateMember(
                     member.id,
                     UpdateMemberRequest(
-                        fullName = fullName,
-                        phone    = phone,
-                        email    = email?.ifBlank { null },
-                        location = location?.ifBlank { null },
-                        planId   = plan.id,
-                        status   = status,
-                        joinDate = isoFmt.format(cal.time),
+                        fullName  = fullName,
+                        phone     = phone,
+                        email     = email?.ifBlank { null },
+                        location  = location?.ifBlank { null },
+                        planId    = plan.id,
+                        status    = status,
+                        joinDate  = isoFmt.format(cal.time),
+                        trainerId = trainerId,
+                        password  = password,
                     )
                 )
             }
@@ -211,30 +239,36 @@ class MembersFragment : Fragment() {
             .show()
     }
 
+    // ── Add member dialog ──────────────────────────────────────────────────
     private fun showAddMemberDialog() {
         if (availablePlans.isEmpty()) {
             binding.root.showSnackbarError("No plans available. Create a plan first.")
             return
         }
-        val dialogBinding = DialogAddMemberBinding.inflate(layoutInflater)
+        val db = DialogAddMemberBinding.inflate(layoutInflater)
 
-        // Populate plan spinner
         val symbol    = requireContext().gymApp.tokenManager.getCurrencySymbol()
         val planNames = availablePlans.map { "${it.name} (${it.durationDays}d – ${it.fee.toCurrencyString(symbol)})" }
-        dialogBinding.spinnerPlan.adapter = ArrayAdapter(
-            requireContext(), android.R.layout.simple_spinner_item, planNames
+        db.spinnerPlan.adapter = ArrayAdapter(
+            requireContext(), android.R.layout.simple_spinner_item, planNames,
+        ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+
+        db.spinnerTrainer.adapter = ArrayAdapter(
+            requireContext(), android.R.layout.simple_spinner_item, buildTrainerSpinnerEntries(),
         ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
 
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.title_add_member)
-            .setView(dialogBinding.root)
+            .setView(db.root)
             .setPositiveButton(R.string.action_save) { _, _ ->
-                val fullName  = dialogBinding.etFullName.text?.toString()?.trim() ?: ""
-                val phone     = dialogBinding.etPhone.text?.toString()?.trim() ?: ""
-                val email     = dialogBinding.etEmail.text?.toString()?.trim()
-                val location  = dialogBinding.etLocation.text?.toString()?.trim()
-                val selectedPlan = availablePlans[dialogBinding.spinnerPlan.selectedItemPosition]
-                val status    = if (dialogBinding.switchActive.isChecked) "Active" else "Inactive"
+                val fullName  = db.etFullName.text?.toString()?.trim() ?: ""
+                val phone     = db.etPhone.text?.toString()?.trim() ?: ""
+                val email     = db.etEmail.text?.toString()?.trim()
+                val location  = db.etLocation.text?.toString()?.trim()
+                val plan      = availablePlans[db.spinnerPlan.selectedItemPosition]
+                val status    = if (db.switchActive.isChecked) "Active" else "Inactive"
+                val trainerId = selectedTrainerId(db.spinnerTrainer.selectedItemPosition)
+                val password  = db.etPassword.text?.toString()?.trim()?.ifBlank { null }
 
                 if (fullName.isBlank() || phone.isBlank()) {
                     binding.root.showSnackbarError("Name and phone are required.")
@@ -243,12 +277,14 @@ class MembersFragment : Fragment() {
 
                 viewModel.createMember(
                     CreateMemberRequest(
-                        fullName = fullName,
-                        phone    = phone,
-                        email    = email?.ifBlank { null },
-                        location = location?.ifBlank { null },
-                        planId   = selectedPlan.id,
-                        status   = status,
+                        fullName  = fullName,
+                        phone     = phone,
+                        email     = email?.ifBlank { null },
+                        location  = location?.ifBlank { null },
+                        planId    = plan.id,
+                        status    = status,
+                        trainerId = trainerId,
+                        password  = password,
                     )
                 )
             }
@@ -269,6 +305,7 @@ class MembersFragment : Fragment() {
         super.onResume()
         viewModel.loadMembers()
         viewModel.loadPlans()
+        viewModel.loadTrainers()
     }
 
     override fun onDestroyView() {

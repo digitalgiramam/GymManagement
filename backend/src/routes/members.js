@@ -8,19 +8,22 @@
  */
 
 const express    = require('express');
+const bcrypt     = require('bcryptjs');
 const { z }      = require('zod');
 const { query }  = require('../lib/db');
 
 const router = express.Router();
 
 const memberSchema = z.object({
-  fullName: z.string().min(1, 'Full name is required').max(150),
-  phone:    z.string().min(7, 'Phone is required').max(20),
-  email:    z.string().email('Invalid email').optional().or(z.literal('')).transform(v => v || null),
-  location: z.string().max(200).optional().or(z.literal('')).transform(v => v || null),
-  planId:   z.number().int().positive('Plan ID is required'),
-  status:   z.enum(['Active', 'Inactive']).default('Active'),
-  joinDate: z.string().datetime().optional(),
+  fullName:  z.string().min(1, 'Full name is required').max(150),
+  phone:     z.string().min(7, 'Phone is required').max(20),
+  email:     z.string().email('Invalid email').optional().or(z.literal('')).transform(v => v || null),
+  location:  z.string().max(200).optional().or(z.literal('')).transform(v => v || null),
+  planId:    z.number().int().positive('Plan ID is required'),
+  status:    z.enum(['Active', 'Inactive']).default('Active'),
+  joinDate:  z.string().datetime().optional(),
+  trainerId: z.number().int().positive().optional().nullable(),
+  password:  z.string().min(6, 'Password must be at least 6 characters').optional().or(z.literal('')).transform(v => v || null),
 });
 
 const memberUpdateSchema = memberSchema.partial();
@@ -75,7 +78,8 @@ router.get('/', async (req, res) => {
               p."isActive"  AS "planActive_",
               lp.amount              AS "lpAmount_",
               lp."planFee"           AS "lpPlanFee_",
-              lp."membershipExtendedTo" AS "lpExpiry_"
+              lp."membershipExtendedTo" AS "lpExpiry_",
+              s."fullName"           AS "trainerName_"
        FROM members m
        JOIN plans p ON p.id = m."planId"
        LEFT JOIN LATERAL (
@@ -85,6 +89,7 @@ router.get('/', async (req, res) => {
          ORDER  BY "paymentDate" DESC, id DESC
          LIMIT  1
        ) lp ON true
+       LEFT JOIN staff s ON s.id = m."trainerId"
        WHERE m."tenantId" = $1
          AND ($2::text IS NULL
               OR m."fullName" ILIKE '%' || $2 || '%'
@@ -99,8 +104,8 @@ router.get('/', async (req, res) => {
         ? { amount: row.lpAmount_, planFee: row.lpPlanFee_, membershipExtendedTo: row.lpExpiry_ }
         : null;
       const { planId_: _1, planName_: _2, planDays_: _3, planFee_: _4, planActive_: _5,
-              lpAmount_: _6, lpPlanFee_: _7, lpExpiry_: _8, ...member } = row;
-      return enrichMember(member, plan, latestPayment);
+              lpAmount_: _6, lpPlanFee_: _7, lpExpiry_: _8, trainerName_: trainerName, ...member } = row;
+      return { ...enrichMember(member, plan, latestPayment), trainerName: trainerName ?? null };
     });
 
     return res.json(enriched);
@@ -126,7 +131,8 @@ router.get('/:id', async (req, res) => {
               p."isActive"  AS "planActive_",
               lp.amount              AS "lpAmount_",
               lp."planFee"           AS "lpPlanFee_",
-              lp."membershipExtendedTo" AS "lpExpiry_"
+              lp."membershipExtendedTo" AS "lpExpiry_",
+              s."fullName"           AS "trainerName_"
        FROM members m
        JOIN plans p ON p.id = m."planId"
        LEFT JOIN LATERAL (
@@ -136,6 +142,7 @@ router.get('/:id', async (req, res) => {
          ORDER  BY "paymentDate" DESC, id DESC
          LIMIT  1
        ) lp ON true
+       LEFT JOIN staff s ON s.id = m."trainerId"
        WHERE m.id = $1 AND m."tenantId" = $2`,
       [id, tenantId],
     );
@@ -152,9 +159,9 @@ router.get('/:id', async (req, res) => {
       ? { amount: row.lpAmount_, planFee: row.lpPlanFee_, membershipExtendedTo: row.lpExpiry_ }
       : null;
     const { planId_: _1, planName_: _2, planDays_: _3, planFee_: _4, planActive_: _5,
-            lpAmount_: _6, lpPlanFee_: _7, lpExpiry_: _8, ...member } = row;
+            lpAmount_: _6, lpPlanFee_: _7, lpExpiry_: _8, trainerName_: trainerName, ...member } = row;
 
-    const enriched = enrichMember(member, plan, latestPayment);
+    const enriched = { ...enrichMember(member, plan, latestPayment), trainerName: trainerName ?? null };
     return res.json({ ...enriched, attendance: attRows });
   } catch (err) {
     console.error('[members/GET/:id]', err);
@@ -168,13 +175,15 @@ router.post('/', async (req, res) => {
   const result   = memberSchema.safeParse(req.body);
   if (!result.success) return res.status(400).json({ error: result.error.errors[0].message });
 
-  const { fullName, phone, email, location, planId, status, joinDate } = result.data;
+  const { fullName, phone, email, location, planId, status, joinDate, trainerId, password } = result.data;
 
   try {
+    const passwordHash = password ? await bcrypt.hash(password, 12) : null;
     const { rows } = await query(
-      `INSERT INTO members ("tenantId","fullName",phone,email,location,"planId",status,"joinDate")
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [tenantId, fullName, phone, email ?? null, location ?? null, planId, status, joinDate ? new Date(joinDate) : new Date()],
+      `INSERT INTO members ("tenantId","fullName",phone,email,location,"planId",status,"joinDate","trainerId","passwordHash")
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [tenantId, fullName, phone, email ?? null, location ?? null, planId, status,
+       joinDate ? new Date(joinDate) : new Date(), trainerId ?? null, passwordHash],
     );
     const { rows: planRows } = await query(`SELECT * FROM plans WHERE id = $1`, [planId]);
     return res.status(201).json({ ...rows[0], plan: planRows[0] ?? null });
@@ -200,13 +209,19 @@ router.put('/:id', async (req, res) => {
   const vals = [];
   let p = 1;
 
-  if (data.fullName  !== undefined) { sets.push(`"fullName" = $${p++}`);  vals.push(data.fullName); }
-  if (data.phone     !== undefined) { sets.push(`phone = $${p++}`);       vals.push(data.phone); }
-  if (data.email     !== undefined) { sets.push(`email = $${p++}`);       vals.push(data.email); }
-  if (data.location  !== undefined) { sets.push(`location = $${p++}`);    vals.push(data.location); }
-  if (data.planId    !== undefined) { sets.push(`"planId" = $${p++}`);    vals.push(data.planId); }
-  if (data.status    !== undefined) { sets.push(`status = $${p++}`);      vals.push(data.status); }
-  if (data.joinDate  !== undefined) { sets.push(`"joinDate" = $${p++}`);  vals.push(new Date(data.joinDate)); }
+  if (data.fullName  !== undefined) { sets.push(`"fullName" = $${p++}`);   vals.push(data.fullName); }
+  if (data.phone     !== undefined) { sets.push(`phone = $${p++}`);        vals.push(data.phone); }
+  if (data.email     !== undefined) { sets.push(`email = $${p++}`);        vals.push(data.email); }
+  if (data.location  !== undefined) { sets.push(`location = $${p++}`);     vals.push(data.location); }
+  if (data.planId    !== undefined) { sets.push(`"planId" = $${p++}`);     vals.push(data.planId); }
+  if (data.status    !== undefined) { sets.push(`status = $${p++}`);       vals.push(data.status); }
+  if (data.joinDate  !== undefined) { sets.push(`"joinDate" = $${p++}`);   vals.push(new Date(data.joinDate)); }
+  if (data.trainerId !== undefined) { sets.push(`"trainerId" = $${p++}`);  vals.push(data.trainerId ?? null); }
+  if (data.password) {
+    const hash = await bcrypt.hash(data.password, 12);
+    sets.push(`"passwordHash" = $${p++}`);
+    vals.push(hash);
+  }
 
   if (sets.length === 0) return res.status(400).json({ error: 'No fields to update.' });
   vals.push(id, tenantId);

@@ -124,6 +124,9 @@ data class Member(
     val lastPaymentAmount: Double?   = null,
     val lastPlanFee: Double?         = null,
     val overdueAmount: Double?       = null,
+    /** Trainer assigned to this member (null = unassigned) */
+    val trainerId: Int?              = null,
+    val trainerName: String?         = null,
 )
 
 data class MemberDetail(
@@ -147,6 +150,8 @@ data class MemberDetail(
     val lastPaymentAmount: Double?   = null,
     val lastPlanFee: Double?         = null,
     val overdueAmount: Double?       = null,
+    val trainerId: Int?              = null,
+    val trainerName: String?         = null,
 )
 
 data class CreateMemberRequest(
@@ -157,6 +162,10 @@ data class CreateMemberRequest(
     val planId: Int,
     val status: String = "Active",
     val joinDate: String? = null,
+    /** Trainer to assign this member to (null = unassigned) */
+    val trainerId: Int? = null,
+    /** Optional login password for member portal access */
+    val password: String? = null,
 )
 
 data class UpdateMemberRequest(
@@ -167,6 +176,8 @@ data class UpdateMemberRequest(
     val planId: Int? = null,
     val status: String? = null,
     val joinDate: String? = null,
+    val trainerId: Int? = null,
+    val password: String? = null,
 )
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -7,15 +7,18 @@ import androidx.lifecycle.viewModelScope
 import com.gymmanager.data.model.CreateMemberRequest
 import com.gymmanager.data.model.Member
 import com.gymmanager.data.model.Plan
+import com.gymmanager.data.model.Staff
 import com.gymmanager.data.model.UpdateMemberRequest
 import com.gymmanager.data.repository.MemberRepository
 import com.gymmanager.data.repository.PlanRepository
+import com.gymmanager.data.repository.StaffRepository
 import com.gymmanager.utils.NetworkResult
 import kotlinx.coroutines.launch
 
 class MembersViewModel(
     private val memberRepo: MemberRepository,
     private val planRepo: PlanRepository,
+    private val staffRepo: StaffRepository,
 ) : ViewModel() {
 
     private val _members = MutableLiveData<NetworkResult<List<Member>>>()
@@ -24,12 +27,16 @@ class MembersViewModel(
     private val _plans = MutableLiveData<NetworkResult<List<Plan>>>()
     val plans: LiveData<NetworkResult<List<Plan>>> = _plans
 
+    private val _trainers = MutableLiveData<List<Staff>>(emptyList())
+    val trainers: LiveData<List<Staff>> = _trainers
+
     private val _actionResult = MutableLiveData<NetworkResult<Any>>()
     val actionResult: LiveData<NetworkResult<Any>> = _actionResult
 
     init {
         loadMembers()
         loadPlans()
+        loadTrainers()
     }
 
     fun loadMembers(search: String? = null) {
@@ -42,6 +49,15 @@ class MembersViewModel(
     fun loadPlans() {
         viewModelScope.launch {
             _plans.value = planRepo.getPlans()
+        }
+    }
+
+    fun loadTrainers() {
+        viewModelScope.launch {
+            val result = staffRepo.getStaff()
+            if (result is NetworkResult.Success) {
+                _trainers.value = result.data.filter { it.role == "TRAINER" }
+            }
         }
     }
 

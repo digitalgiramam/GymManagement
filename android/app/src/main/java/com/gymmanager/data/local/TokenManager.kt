@@ -76,9 +76,12 @@ class TokenManager(private val context: Context) {
     /** Returns "OWNER" if no role stored (backwards compat). */
     fun getRole(): String = prefs.getString(KEY_ROLE, "OWNER") ?: "OWNER"
 
-    fun isOwner()  = getRole() == "OWNER"
-    fun isStaff()  = getRole() == "STAFF"
-    fun isMember() = getRole() == "MEMBER"
+    fun isOwner()        = getRole() == "OWNER"
+    /** True for any staff role: TRAINER, RECEPTIONIST, or legacy STAFF token */
+    fun isStaff()        = getRole() in setOf("STAFF", "TRAINER", "RECEPTIONIST")
+    fun isTrainer()      = getRole() == "TRAINER"
+    fun isReceptionist() = getRole() == "RECEPTIONIST"
+    fun isMember()       = getRole() == "MEMBER"
 
     // ── Currency ──────────────────────────────────────────────────────────────
 

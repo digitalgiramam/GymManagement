@@ -165,4 +165,17 @@ interface ApiService {
     // ── Dashboard ─────────────────────────────────────────────────────────────
     @GET("dashboard/stats")
     suspend fun getDashboardStats(): Response<DashboardStats>
+
+    // ── Staff Portal (TRAINER / RECEPTIONIST) ─────────────────────────────────
+    /** Members assigned to the logged-in trainer */
+    @GET("staff-portal/my-members")
+    suspend fun getMyMembers(): Response<List<Member>>
+
+    /** Today's attendance for the trainer's assigned members */
+    @GET("staff-portal/my-attendance")
+    suspend fun getMyAttendance(): Response<List<Attendance>>
+
+    /** Mark check-in via staff portal (same as /attendance but no requireTenant guard) */
+    @POST("staff-portal/attendance")
+    suspend fun staffPortalCheckIn(@Body request: CheckInRequest): Response<Attendance>
 }

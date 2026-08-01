@@ -22,7 +22,8 @@ const expenseRoutes    = require('../src/routes/expenses');
 const staffRoutes      = require('../src/routes/staff');
 const settingsRoutes   = require('../src/routes/settings');
 const exportRoutes     = require('../src/routes/export');
-const memberPortalRoutes = require('../src/routes/member-portal');
+const memberPortalRoutes  = require('../src/routes/member-portal');
+const staffPortalRoutes   = require('../src/routes/staff-portal');
 
 // ── Middleware ─────────────────────────────────────────────────────────────
 const { authenticateJWT, requireTenant } = require('../src/middleware/auth');
@@ -61,6 +62,9 @@ app.use('/api/export',        authenticateJWT, requireTenant, exportRoutes);
 
 // ── Member portal (role = MEMBER, no requireTenant needed — tenantId in JWT) ─
 app.use('/api/member-portal', authenticateJWT, memberPortalRoutes);
+
+// ── Staff portal (TRAINER / RECEPTIONIST — tenantId + staffId in JWT) ─────
+app.use('/api/staff-portal', authenticateJWT, staffPortalRoutes);
 
 // ── 404 catch-all ─────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ error: 'Route not found.' }));

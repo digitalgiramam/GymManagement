@@ -4,27 +4,42 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.ArrayAdapter
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.gymmanager.databinding.ActivityStaffDashboardBinding
 import com.gymmanager.gymApp
 import com.gymmanager.ui.auth.LoginActivity
+import com.gymmanager.data.model.Member
 import com.gymmanager.utils.NetworkResult
 import com.gymmanager.utils.showSnackbar
 import com.gymmanager.utils.showSnackbarError
-import kotlinx.coroutines.launch
 
 /**
  * Simplified dashboard for staff members (RECEPTIONIST / TRAINER).
- * Capabilities: mark attendance, view member list.
- * No access to financials, expenses, or settings.
+ *
+ * - TRAINER: loads only their assigned members via [StaffPortalMemberViewModel]
+ * - RECEPTIONIST: loads all tenant members via [StaffMemberViewModel]
+ * Both roles can mark attendance and view today's check-ins.
  */
 class StaffDashboardActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityStaffDashboardBinding
 
+    private val isTrainer by lazy { gymApp.tokenManager.isTrainer() }
+
+    // ── Trainer path: filtered member list from staff-portal ─────────────────
+    private val portalMemberViewModel: StaffPortalMemberViewModel by lazy {
+        ViewModelProvider(this, object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                @Suppress("UNCHECKED_CAST")
+                return StaffPortalMemberViewModel(gymApp.staffPortalRepository) as T
+            }
+        })[StaffPortalMemberViewModel::class.java]
+    }
+
+    // ── Receptionist path: all members ────────────────────────────────────────
     private val memberViewModel: StaffMemberViewModel by lazy {
         ViewModelProvider(this, object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -43,8 +58,12 @@ class StaffDashboardActivity : AppCompatActivity() {
         })[StaffAttendanceViewModel::class.java]
     }
 
-    private val memberAdapter = StaffMemberListAdapter()
+    private val memberAdapter    = StaffMemberListAdapter()
     private val attendanceAdapter = StaffAttendanceAdapter()
+
+    /** Convenience: live member data regardless of role */
+    private val activeMemberLiveData: LiveData<NetworkResult<List<Member>>>
+        get() = if (isTrainer) portalMemberViewModel.members else memberViewModel.members
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,7 +71,12 @@ class StaffDashboardActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         val staffName = gymApp.tokenManager.getUserName() ?: "Staff"
-        binding.tvWelcome.text = "Welcome, $staffName"
+        val roleLabel = when {
+            gymApp.tokenManager.isTrainer()      -> "Trainer"
+            gymApp.tokenManager.isReceptionist() -> "Receptionist"
+            else                                  -> "Staff"
+        }
+        binding.tvWelcome.text = "Welcome, $staffName ($roleLabel)"
 
         binding.rvMembers.adapter    = memberAdapter
         binding.rvAttendance.adapter = attendanceAdapter
@@ -66,12 +90,12 @@ class StaffDashboardActivity : AppCompatActivity() {
     }
 
     private fun loadData() {
-        memberViewModel.loadMembers()
+        if (isTrainer) portalMemberViewModel.loadMembers() else memberViewModel.loadMembers()
         attendanceViewModel.loadTodayAttendance()
     }
 
     private fun observeViewModels() {
-        memberViewModel.members.observe(this) { result ->
+        activeMemberLiveData.observe(this) { result ->
             binding.swipeRefresh.isRefreshing = false
             when (result) {
                 is NetworkResult.Success -> memberAdapter.submitList(result.data)
@@ -104,7 +128,7 @@ class StaffDashboardActivity : AppCompatActivity() {
     }
 
     private fun showCheckInDialog() {
-        val members = (memberViewModel.members.value as? NetworkResult.Success)?.data
+        val members = (activeMemberLiveData.value as? NetworkResult.Success)?.data
         if (members.isNullOrEmpty()) {
             binding.root.showSnackbarError("No members loaded yet.")
             return
