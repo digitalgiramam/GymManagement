@@ -43,6 +43,10 @@ class AuthRepository(
             email     = response.user.email ?: "",
             avatarUrl = null,
         )
+        // Keep the gym's configured currency in sync for Staff/Member portals too,
+        // not just the Owner flow (which sets it during onboarding).
+        response.user.currencySymbol?.takeIf { it.isNotBlank() }
+            ?.let { tokenManager.saveCurrencySymbol(it) }
     }
 
     suspend fun createGym(request: CreateGymRequest): NetworkResult<CreateGymResponse> {

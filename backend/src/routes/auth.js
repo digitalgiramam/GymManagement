@@ -35,6 +35,18 @@ function makeToken(payload) {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '30d' });
 }
 
+/** Look up the tenant's configured currency symbol (falls back to "$"). */
+async function getCurrencySymbol(tenantId) {
+  if (!tenantId) return '$';
+  try {
+    const { rows } = await query(`SELECT "currencySymbol" FROM tenants WHERE id = $1`, [tenantId]);
+    return rows[0]?.currencySymbol || '$';
+  } catch (err) {
+    console.error('[auth/getCurrencySymbol]', err);
+    return '$';
+  }
+}
+
 // ── POST /api/auth/register ────────────────────────────────────────────────
 router.post('/register', async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
@@ -77,9 +89,10 @@ router.post('/login', async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Invalid email or password.' });
 
     const token = makeToken({ userId: user.id, tenantId: user.tenantId, email: user.email, role: 'OWNER' });
+    const currencySymbol = await getCurrencySymbol(user.tenantId);
     return res.json({
       token,
-      user: { id: user.id, email: user.email, name: user.name, tenantId: user.tenantId, role: 'OWNER' },
+      user: { id: user.id, email: user.email, name: user.name, tenantId: user.tenantId, role: 'OWNER', currencySymbol },
     });
   } catch (err) {
     console.error('[auth/login]', err);
@@ -105,9 +118,10 @@ router.post('/staff-login', async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Invalid email or password.' });
 
     const token = makeToken({ userId: staff.id, tenantId: staff.tenantId, email: staff.email, role: 'STAFF', staffId: staff.id });
+    const currencySymbol = await getCurrencySymbol(staff.tenantId);
     return res.json({
       token,
-      user: { id: staff.id, email: staff.email, name: staff.fullName, tenantId: staff.tenantId, role: staff.role },
+      user: { id: staff.id, email: staff.email, name: staff.fullName, tenantId: staff.tenantId, role: staff.role, currencySymbol },
     });
   } catch (err) {
     console.error('[auth/staff-login]', err);
@@ -140,9 +154,10 @@ router.post('/member-login', async (req, res) => {
       userId: member.id, tenantId: member.tenantId,
       email: member.email ?? `member_${member.id}`, role: 'MEMBER', memberId: member.id,
     });
+    const currencySymbol = await getCurrencySymbol(member.tenantId);
     return res.json({
       token,
-      user: { id: member.id, email: member.email, name: member.fullName, tenantId: member.tenantId, role: 'MEMBER' },
+      user: { id: member.id, email: member.email, name: member.fullName, tenantId: member.tenantId, role: 'MEMBER', currencySymbol },
     });
   } catch (err) {
     console.error('[auth/member-login]', err);

@@ -4,6 +4,8 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
 import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -37,6 +39,12 @@ class LoginActivity : AppCompatActivity() {
     private var isRegisterMode = false
     private var selectedRole = LoginRole.OWNER
 
+    private val roleOptions = listOf(
+        "Owner"  to LoginRole.OWNER,
+        "Staff"  to LoginRole.STAFF,
+        "Member" to LoginRole.MEMBER,
+    )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityLoginBinding.inflate(layoutInflater)
@@ -48,25 +56,28 @@ class LoginActivity : AppCompatActivity() {
             return
         }
 
-        setupRoleChips()
+        setupRoleDropdown()
         setupListeners()
         setupObservers()
     }
 
-    private fun setupRoleChips() {
-        binding.chipOwner.isChecked  = true
-        binding.chipGroup.setOnCheckedStateChangeListener { _, checkedIds ->
-            selectedRole = when {
-                checkedIds.contains(binding.chipOwner.id)  -> LoginRole.OWNER
-                checkedIds.contains(binding.chipStaff.id)  -> LoginRole.STAFF
-                checkedIds.contains(binding.chipMember.id) -> LoginRole.MEMBER
-                else -> LoginRole.OWNER
+    private fun setupRoleDropdown() {
+        binding.spinnerRole.adapter = ArrayAdapter(
+            this, android.R.layout.simple_spinner_item, roleOptions.map { it.first },
+        ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+
+        binding.spinnerRole.setSelection(roleOptions.indexOfFirst { it.second == selectedRole })
+
+        binding.spinnerRole.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                selectedRole = roleOptions[position].second
+                // Staff/Member can only sign in, not register
+                if (selectedRole != LoginRole.OWNER && isRegisterMode) {
+                    isRegisterMode = false
+                }
+                updateModeUI()
             }
-            // Staff/Member can only sign in, not register
-            if (selectedRole != LoginRole.OWNER && isRegisterMode) {
-                isRegisterMode = false
-            }
-            updateModeUI()
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
     }
 

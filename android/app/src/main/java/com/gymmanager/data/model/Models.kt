@@ -26,6 +26,8 @@ data class AuthUser(
     val name: String,
     val tenantId: Int?,   // null until onboarding complete
     val role: String = "OWNER",   // "OWNER" | "STAFF" | "MEMBER"
+    /** Gym's configured currency symbol — same value shown in Gym Setup. */
+    val currencySymbol: String? = null,
 )
 
 // ─────────────────────────────────────────────────────────────────────────────

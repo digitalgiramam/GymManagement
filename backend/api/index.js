@@ -47,6 +47,27 @@ app.get('/api/health', (_req, res) => res.json({
   ts: new Date().toISOString(),
 }));
 
+// ── TEMPORARY DIAGNOSTIC — remove after debugging login issue ─────────────
+// Shows exactly what the production server sees, with no sensitive data.
+app.get('/api/_debug-accounts', async (_req, res) => {
+  const { query } = require('../src/lib/db');
+  try {
+    const staff = await query(
+      `SELECT id, "tenantId", "fullName", email, role, ("passwordHash" IS NOT NULL) AS "hasPassword" FROM staff ORDER BY id`
+    );
+    const members = await query(
+      `SELECT id, "tenantId", "fullName", phone, email, ("passwordHash" IS NOT NULL) AS "hasPassword" FROM members ORDER BY id`
+    );
+    res.json({
+      dbHost: (process.env.DATABASE_URL || '').split('@')[1]?.split('/')[0] || 'UNKNOWN',
+      staff: staff.rows,
+      members: members.rows,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Public routes ──────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 
