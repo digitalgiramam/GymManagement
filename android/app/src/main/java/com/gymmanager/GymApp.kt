@@ -27,6 +27,7 @@ class GymApp : Application() {
     val memberPortalRepository   by lazy { MemberPortalRepository(apiService) }
     val paymentRepository        by lazy { PaymentRepository(apiService) }
     val staffPortalRepository    by lazy { StaffPortalRepository(apiService) }
+    val progressRepository       by lazy { ProgressRepository(apiService) }
 }
 
 /** Convenience extension to reach [GymApp] from any Fragment or Activity. */

@@ -11,6 +11,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.gymmanager.databinding.ActivityStaffDashboardBinding
 import com.gymmanager.gymApp
 import com.gymmanager.ui.auth.LoginActivity
+import com.gymmanager.ui.progress.ProgressActivity
 import com.gymmanager.data.model.Member
 import com.gymmanager.utils.NetworkResult
 import com.gymmanager.utils.showSnackbar
@@ -58,7 +59,13 @@ class StaffDashboardActivity : AppCompatActivity() {
         })[StaffAttendanceViewModel::class.java]
     }
 
-    private val memberAdapter    = StaffMemberListAdapter()
+    private val memberAdapter = StaffMemberListAdapter(onClick = { member ->
+        startActivity(
+            Intent(this, ProgressActivity::class.java)
+                .putExtra(ProgressActivity.EXTRA_MEMBER_ID, member.id)
+                .putExtra(ProgressActivity.EXTRA_MEMBER_NAME, member.fullName)
+        )
+    })
     private val attendanceAdapter = StaffAttendanceAdapter()
 
     /** Convenience: live member data regardless of role */

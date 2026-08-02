@@ -131,10 +131,18 @@
                     </LinearLayout>
 
                     <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnViewProgress"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:text="View Progress (Weight / BMI / Goals)" />
+
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnToggleStatus"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
+                        android:layout_marginTop="8dp"
                         style="@style/Widget.Material3.Button.OutlinedButton"
                         android:text="Deactivate" />
                 </LinearLayout>

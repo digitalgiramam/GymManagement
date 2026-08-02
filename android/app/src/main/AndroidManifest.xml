@@ -45,5 +45,11 @@
             android:name=".ui.member.MemberPortalActivity"
             android:exported="false" />
 
+        <!-- Progress tracking — weight/BMI/measurements + goals.
+             Used both by staff (viewing a specific member) and by members (self-service). -->
+        <activity
+            android:name=".ui.progress.ProgressActivity"
+            android:exported="false" />
+
     </application>
 </manifest>

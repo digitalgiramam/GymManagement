@@ -129,6 +129,8 @@ data class Member(
     /** Trainer assigned to this member (null = unassigned) */
     val trainerId: Int?              = null,
     val trainerName: String?         = null,
+    /** Height in cm — used to compute BMI in progress tracking. */
+    val heightCm: Double?            = null,
 )
 
 data class MemberDetail(
@@ -154,6 +156,7 @@ data class MemberDetail(
     val overdueAmount: Double?       = null,
     val trainerId: Int?              = null,
     val trainerName: String?         = null,
+    val heightCm: Double?            = null,
 )
 
 data class CreateMemberRequest(
@@ -168,6 +171,7 @@ data class CreateMemberRequest(
     val trainerId: Int? = null,
     /** Optional login password for member portal access */
     val password: String? = null,
+    val heightCm: Double? = null,
 )
 
 data class UpdateMemberRequest(
@@ -180,6 +184,66 @@ data class UpdateMemberRequest(
     val joinDate: String? = null,
     val trainerId: Int? = null,
     val password: String? = null,
+    val heightCm: Double? = null,
+)
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Progress Tracking — weight/BMI/measurements + goals
+// ─────────────────────────────────────────────────────────────────────────────
+
+data class ProgressEntry(
+    val id: Int,
+    val tenantId: Int,
+    val memberId: Int,
+    val recordedByStaffId: Int?,
+    /** Name of the trainer/staff who logged this, or null if the member self-logged it. */
+    val recordedByName: String?,
+    val entryDate: String,
+    val weightKg: Double?,
+    /** Computed server-side from weight + the member's stored height. Null if height isn't set. */
+    val bmi: Double?,
+    val chestCm: Double?,
+    val waistCm: Double?,
+    val hipsCm: Double?,
+    val armsCm: Double?,
+    val thighsCm: Double?,
+    val notes: String?,
+    val createdAt: String,
+)
+
+data class ProgressEntryRequest(
+    val entryDate: String? = null,
+    val weightKg: Double? = null,
+    val chestCm: Double? = null,
+    val waistCm: Double? = null,
+    val hipsCm: Double? = null,
+    val armsCm: Double? = null,
+    val thighsCm: Double? = null,
+    val notes: String? = null,
+)
+
+data class Goal(
+    val id: Int,
+    val tenantId: Int,
+    val memberId: Int,
+    val goalType: String,   // "WEIGHT" | "MEASUREMENT" | "CUSTOM"
+    val description: String,
+    val targetWeightKg: Double?,
+    val targetDate: String?,
+    val status: String,     // "ACTIVE" | "ACHIEVED" | "ABANDONED"
+    val createdAt: String,
+    val achievedAt: String?,
+)
+
+data class GoalRequest(
+    val goalType: String = "CUSTOM",
+    val description: String,
+    val targetWeightKg: Double? = null,
+    val targetDate: String? = null,
+)
+
+data class GoalStatusRequest(
+    val status: String,   // "ACTIVE" | "ACHIEVED" | "ABANDONED"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,12 +1,21 @@
 /**
  * Member Portal routes — for authenticated gym members
- * GET /api/member-portal/me            → profile + payment status
- * GET /api/member-portal/me/attendance → attendance history
- * GET /api/member-portal/me/payments   → payment history with status
+ * GET  /api/member-portal/me                → profile + payment status
+ * GET  /api/member-portal/me/attendance     → attendance history
+ * GET  /api/member-portal/me/payments       → payment history with status
+ * GET  /api/member-portal/me/progress       → self-logged progress history
+ * POST /api/member-portal/me/progress       → self-log a new progress entry
+ * DEL  /api/member-portal/me/progress/:id   → remove one of their own entries
+ * GET  /api/member-portal/me/goals          → their goals
+ * POST /api/member-portal/me/goals          → set a new goal
+ * PUT  /api/member-portal/me/goals/:id      → update goal status
+ * DEL  /api/member-portal/me/goals/:id      → remove a goal
  */
 
 const express   = require('express');
+const { z }     = require('zod');
 const { query } = require('../lib/db');
+const progressLib = require('../lib/progress');
 
 const router = express.Router();
 
@@ -178,6 +187,142 @@ router.get('/me/payments', async (req, res) => {
   } catch (err) {
     console.error('[member-portal/payments]', err);
     return res.status(500).json({ error: 'Failed to fetch payments.' });
+  }
+});
+
+// ── Progress tracking (self-service) ───────────────────────────────────────
+
+const entrySchema = z.object({
+  entryDate: z.string().datetime().optional(),
+  weightKg:  z.number().positive().max(500).optional(),
+  chestCm:   z.number().positive().max(300).optional(),
+  waistCm:   z.number().positive().max(300).optional(),
+  hipsCm:    z.number().positive().max(300).optional(),
+  armsCm:    z.number().positive().max(300).optional(),
+  thighsCm:  z.number().positive().max(300).optional(),
+  notes:     z.string().max(500).optional(),
+});
+
+const goalSchema = z.object({
+  goalType:       z.enum(['WEIGHT', 'MEASUREMENT', 'CUSTOM']).default('CUSTOM'),
+  description:    z.string().min(1, 'Describe the goal').max(300),
+  targetWeightKg: z.number().positive().max(500).optional(),
+  targetDate:     z.string().optional(),
+});
+
+const statusSchema = z.object({
+  status: z.enum(['ACTIVE', 'ACHIEVED', 'ABANDONED']),
+});
+
+// ── GET /api/member-portal/me/progress ─────────────────────────────────────
+router.get('/me/progress', async (req, res) => {
+  const { memberId, tenantId } = req.user;
+  try {
+    const entries = await progressLib.listProgress(tenantId, memberId);
+    return res.json(entries);
+  } catch (err) {
+    console.error('[member-portal/progress/GET]', err);
+    return res.status(500).json({ error: 'Failed to fetch progress history.' });
+  }
+});
+
+// ── POST /api/member-portal/me/progress ────────────────────────────────────
+router.post('/me/progress', async (req, res) => {
+  const { memberId, tenantId } = req.user;
+  const result = entrySchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ error: result.error.errors[0].message });
+
+  const hasAnyValue = ['weightKg', 'chestCm', 'waistCm', 'hipsCm', 'armsCm', 'thighsCm']
+    .some(k => result.data[k] !== undefined);
+  if (!hasAnyValue) return res.status(400).json({ error: 'Enter at least one measurement.' });
+
+  try {
+    // recordedByStaffId = null → this member logged it themselves
+    const entry = await progressLib.createProgress(tenantId, memberId, result.data, null);
+    return res.status(201).json(entry);
+  } catch (err) {
+    console.error('[member-portal/progress/POST]', err);
+    return res.status(500).json({ error: 'Failed to add progress entry.' });
+  }
+});
+
+// ── DELETE /api/member-portal/me/progress/:entryId ─────────────────────────
+router.delete('/me/progress/:entryId', async (req, res) => {
+  const { memberId, tenantId } = req.user;
+  const entryId = parseInt(req.params.entryId, 10);
+  if (isNaN(entryId)) return res.status(400).json({ error: 'Invalid entry ID.' });
+
+  try {
+    const ok = await progressLib.deleteProgress(tenantId, memberId, entryId);
+    if (!ok) return res.status(404).json({ error: 'Progress entry not found.' });
+    return res.status(204).send();
+  } catch (err) {
+    console.error('[member-portal/progress/DELETE]', err);
+    return res.status(500).json({ error: 'Failed to delete progress entry.' });
+  }
+});
+
+// ── Goals (self-service) ────────────────────────────────────────────────────
+
+// ── GET /api/member-portal/me/goals ────────────────────────────────────────
+router.get('/me/goals', async (req, res) => {
+  const { memberId, tenantId } = req.user;
+  try {
+    const goals = await progressLib.listGoals(tenantId, memberId);
+    return res.json(goals);
+  } catch (err) {
+    console.error('[member-portal/goals/GET]', err);
+    return res.status(500).json({ error: 'Failed to fetch goals.' });
+  }
+});
+
+// ── POST /api/member-portal/me/goals ───────────────────────────────────────
+router.post('/me/goals', async (req, res) => {
+  const { memberId, tenantId } = req.user;
+  const result = goalSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ error: result.error.errors[0].message });
+
+  try {
+    const goal = await progressLib.createGoal(tenantId, memberId, result.data);
+    return res.status(201).json(goal);
+  } catch (err) {
+    console.error('[member-portal/goals/POST]', err);
+    return res.status(500).json({ error: 'Failed to add goal.' });
+  }
+});
+
+// ── PUT /api/member-portal/me/goals/:goalId ────────────────────────────────
+router.put('/me/goals/:goalId', async (req, res) => {
+  const { memberId, tenantId } = req.user;
+  const goalId = parseInt(req.params.goalId, 10);
+  if (isNaN(goalId)) return res.status(400).json({ error: 'Invalid goal ID.' });
+
+  const result = statusSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ error: result.error.errors[0].message });
+
+  try {
+    const goal = await progressLib.updateGoalStatus(tenantId, memberId, goalId, result.data.status);
+    if (!goal) return res.status(404).json({ error: 'Goal not found.' });
+    return res.json(goal);
+  } catch (err) {
+    console.error('[member-portal/goals/PUT]', err);
+    return res.status(500).json({ error: 'Failed to update goal.' });
+  }
+});
+
+// ── DELETE /api/member-portal/me/goals/:goalId ─────────────────────────────
+router.delete('/me/goals/:goalId', async (req, res) => {
+  const { memberId, tenantId } = req.user;
+  const goalId = parseInt(req.params.goalId, 10);
+  if (isNaN(goalId)) return res.status(400).json({ error: 'Invalid goal ID.' });
+
+  try {
+    const ok = await progressLib.deleteGoal(tenantId, memberId, goalId);
+    if (!ok) return res.status(404).json({ error: 'Goal not found.' });
+    return res.status(204).send();
+  } catch (err) {
+    console.error('[member-portal/goals/DELETE]', err);
+    return res.status(500).json({ error: 'Failed to delete goal.' });
   }
 });
 

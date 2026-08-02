@@ -24,6 +24,8 @@ const settingsRoutes   = require('../src/routes/settings');
 const exportRoutes     = require('../src/routes/export');
 const memberPortalRoutes  = require('../src/routes/member-portal');
 const staffPortalRoutes   = require('../src/routes/staff-portal');
+const progressRoutes      = require('../src/routes/progress');
+const goalsRoutes         = require('../src/routes/goals');
 
 // ── Middleware ─────────────────────────────────────────────────────────────
 const { authenticateJWT, requireTenant } = require('../src/middleware/auth');
@@ -47,27 +49,6 @@ app.get('/api/health', (_req, res) => res.json({
   ts: new Date().toISOString(),
 }));
 
-// ── TEMPORARY DIAGNOSTIC — remove after debugging login issue ─────────────
-// Shows exactly what the production server sees, with no sensitive data.
-app.get('/api/_debug-accounts', async (_req, res) => {
-  const { query } = require('../src/lib/db');
-  try {
-    const staff = await query(
-      `SELECT id, "tenantId", "fullName", email, role, ("passwordHash" IS NOT NULL) AS "hasPassword" FROM staff ORDER BY id`
-    );
-    const members = await query(
-      `SELECT id, "tenantId", "fullName", phone, email, ("passwordHash" IS NOT NULL) AS "hasPassword" FROM members ORDER BY id`
-    );
-    res.json({
-      dbHost: (process.env.DATABASE_URL || '').split('@')[1]?.split('/')[0] || 'UNKNOWN',
-      staff: staff.rows,
-      members: members.rows,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // ── Public routes ──────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 
@@ -76,6 +57,8 @@ app.use('/api/onboarding', authenticateJWT, onboardingRoutes);
 
 // ── Protected routes (JWT + tenantId required) ─────────────────────────────
 app.use('/api/members',    authenticateJWT, requireTenant, memberRoutes);
+app.use('/api/members/:memberId/progress', authenticateJWT, requireTenant, progressRoutes);
+app.use('/api/members/:memberId/goals',    authenticateJWT, requireTenant, goalsRoutes);
 app.use('/api/plans',      authenticateJWT, requireTenant, planRoutes);
 app.use('/api/attendance', authenticateJWT, requireTenant, attendanceRoutes);
 app.use('/api/payments',   authenticateJWT, requireTenant, paymentRoutes);

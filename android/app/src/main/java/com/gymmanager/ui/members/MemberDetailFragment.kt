@@ -86,6 +86,15 @@ class MemberDetailFragment : Fragment() {
             showEditDialog(m)
         }
 
+        binding.btnViewProgress.setOnClickListener {
+            val m = currentMember ?: return@setOnClickListener
+            startActivity(
+                android.content.Intent(requireContext(), com.gymmanager.ui.progress.ProgressActivity::class.java)
+                    .putExtra(com.gymmanager.ui.progress.ProgressActivity.EXTRA_MEMBER_ID, m.id)
+                    .putExtra(com.gymmanager.ui.progress.ProgressActivity.EXTRA_MEMBER_NAME, m.fullName)
+            )
+        }
+
         // "Add" button navigates to Payments tab with this member pre-selected
         binding.btnAddPayment.setOnClickListener {
             // Navigate to payments fragment — pass memberId so it can pre-select

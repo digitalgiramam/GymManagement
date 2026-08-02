@@ -11,6 +11,7 @@ import com.gymmanager.R
 import com.gymmanager.databinding.ActivityMemberPortalBinding
 import com.gymmanager.gymApp
 import com.gymmanager.ui.auth.LoginActivity
+import com.gymmanager.ui.progress.ProgressActivity
 import com.gymmanager.utils.NetworkResult
 import com.gymmanager.utils.hide
 import com.gymmanager.utils.show
@@ -49,6 +50,9 @@ class MemberPortalActivity : AppCompatActivity() {
         binding.rvPayments.adapter   = paymentAdapter
 
         binding.btnLogout.setOnClickListener { logout() }
+        binding.btnMyProgress.setOnClickListener {
+            startActivity(Intent(this, ProgressActivity::class.java))
+        }
         binding.swipeRefresh.setOnRefreshListener { viewModel.loadAll() }
 
         observeViewModel()

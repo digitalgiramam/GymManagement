@@ -33,6 +33,27 @@ interface ApiService {
     @GET("member-portal/me/payments")
     suspend fun getMemberPayments(): Response<List<Payment>>
 
+    @GET("member-portal/me/progress")
+    suspend fun getMyProgress(): Response<List<ProgressEntry>>
+
+    @POST("member-portal/me/progress")
+    suspend fun addMyProgress(@Body request: ProgressEntryRequest): Response<ProgressEntry>
+
+    @DELETE("member-portal/me/progress/{entryId}")
+    suspend fun deleteMyProgress(@Path("entryId") entryId: Int): Response<Unit>
+
+    @GET("member-portal/me/goals")
+    suspend fun getMyGoals(): Response<List<Goal>>
+
+    @POST("member-portal/me/goals")
+    suspend fun addMyGoal(@Body request: GoalRequest): Response<Goal>
+
+    @PUT("member-portal/me/goals/{goalId}")
+    suspend fun updateMyGoal(@Path("goalId") goalId: Int, @Body request: GoalStatusRequest): Response<Goal>
+
+    @DELETE("member-portal/me/goals/{goalId}")
+    suspend fun deleteMyGoal(@Path("goalId") goalId: Int): Response<Unit>
+
     // ── Onboarding ────────────────────────────────────────────────────────────
     @POST("onboarding/create-gym")
     suspend fun createGym(@Body request: CreateGymRequest): Response<CreateGymResponse>
@@ -64,6 +85,44 @@ interface ApiService {
 
     @DELETE("members/{id}")
     suspend fun deleteMember(@Path("id") id: Int): Response<Unit>
+
+    // ── Member Progress Tracking (staff/trainer recording on behalf of a member) ─
+    @GET("members/{memberId}/progress")
+    suspend fun getMemberProgress(@Path("memberId") memberId: Int): Response<List<ProgressEntry>>
+
+    @POST("members/{memberId}/progress")
+    suspend fun addMemberProgress(
+        @Path("memberId") memberId: Int,
+        @Body request: ProgressEntryRequest,
+    ): Response<ProgressEntry>
+
+    @DELETE("members/{memberId}/progress/{entryId}")
+    suspend fun deleteMemberProgress(
+        @Path("memberId") memberId: Int,
+        @Path("entryId") entryId: Int,
+    ): Response<Unit>
+
+    @GET("members/{memberId}/goals")
+    suspend fun getMemberGoals(@Path("memberId") memberId: Int): Response<List<Goal>>
+
+    @POST("members/{memberId}/goals")
+    suspend fun addMemberGoal(
+        @Path("memberId") memberId: Int,
+        @Body request: GoalRequest,
+    ): Response<Goal>
+
+    @PUT("members/{memberId}/goals/{goalId}")
+    suspend fun updateMemberGoal(
+        @Path("memberId") memberId: Int,
+        @Path("goalId") goalId: Int,
+        @Body request: GoalStatusRequest,
+    ): Response<Goal>
+
+    @DELETE("members/{memberId}/goals/{goalId}")
+    suspend fun deleteMemberGoal(
+        @Path("memberId") memberId: Int,
+        @Path("goalId") goalId: Int,
+    ): Response<Unit>
 
     // ── Plans ─────────────────────────────────────────────────────────────────
     @GET("plans")

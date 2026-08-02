@@ -8,20 +8,22 @@ import androidx.recyclerview.widget.RecyclerView
 import com.gymmanager.data.model.Member
 import com.gymmanager.databinding.ItemStaffMemberBinding
 
-class StaffMemberListAdapter :
-    ListAdapter<Member, StaffMemberListAdapter.VH>(DIFF) {
+class StaffMemberListAdapter(
+    private val onClick: (Member) -> Unit = {},
+) : ListAdapter<Member, StaffMemberListAdapter.VH>(DIFF) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
         VH(ItemStaffMemberBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
-    override fun onBindViewHolder(holder: VH, position: Int) = holder.bind(getItem(position))
+    override fun onBindViewHolder(holder: VH, position: Int) = holder.bind(getItem(position), onClick)
 
     class VH(private val b: ItemStaffMemberBinding) : RecyclerView.ViewHolder(b.root) {
-        fun bind(m: Member) {
+        fun bind(m: Member, onClick: (Member) -> Unit) {
             b.tvMemberName.text   = m.fullName
             b.tvMemberPhone.text  = m.phone
             b.tvMemberStatus.text = m.status
             b.tvMemberPlan.text   = m.plan?.name ?: ""
+            b.root.setOnClickListener { onClick(m) }
         }
     }
 

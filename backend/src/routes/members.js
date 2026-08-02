@@ -24,6 +24,8 @@ const memberSchema = z.object({
   joinDate:  z.string().datetime().optional(),
   trainerId: z.number().int().positive().optional().nullable(),
   password:  z.string().min(6, 'Password must be at least 6 characters').optional().or(z.literal('')).transform(v => v || null),
+  /** Used to compute BMI for progress tracking — optional, in centimeters. */
+  heightCm:  z.number().positive().max(300).optional().nullable(),
 });
 
 const memberUpdateSchema = memberSchema.partial();
@@ -175,15 +177,15 @@ router.post('/', async (req, res) => {
   const result   = memberSchema.safeParse(req.body);
   if (!result.success) return res.status(400).json({ error: result.error.errors[0].message });
 
-  const { fullName, phone, email, location, planId, status, joinDate, trainerId, password } = result.data;
+  const { fullName, phone, email, location, planId, status, joinDate, trainerId, password, heightCm } = result.data;
 
   try {
     const passwordHash = password ? await bcrypt.hash(password, 12) : null;
     const { rows } = await query(
-      `INSERT INTO members ("tenantId","fullName",phone,email,location,"planId",status,"joinDate","trainerId","passwordHash")
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      `INSERT INTO members ("tenantId","fullName",phone,email,location,"planId",status,"joinDate","trainerId","passwordHash","heightCm")
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
       [tenantId, fullName, phone, email ?? null, location ?? null, planId, status,
-       joinDate ? new Date(joinDate) : new Date(), trainerId ?? null, passwordHash],
+       joinDate ? new Date(joinDate) : new Date(), trainerId ?? null, passwordHash, heightCm ?? null],
     );
     const { rows: planRows } = await query(`SELECT * FROM plans WHERE id = $1`, [planId]);
     return res.status(201).json({ ...rows[0], plan: planRows[0] ?? null });
@@ -217,6 +219,7 @@ router.put('/:id', async (req, res) => {
   if (data.status    !== undefined) { sets.push(`status = $${p++}`);       vals.push(data.status); }
   if (data.joinDate  !== undefined) { sets.push(`"joinDate" = $${p++}`);   vals.push(new Date(data.joinDate)); }
   if (data.trainerId !== undefined) { sets.push(`"trainerId" = $${p++}`);  vals.push(data.trainerId ?? null); }
+  if (data.heightCm  !== undefined) { sets.push(`"heightCm" = $${p++}`);   vals.push(data.heightCm ?? null); }
   if (data.password) {
     const hash = await bcrypt.hash(data.password, 12);
     sets.push(`"passwordHash" = $${p++}`);
