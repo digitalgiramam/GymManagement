@@ -37,7 +37,7 @@ label {
   color: #b3b9c6;
   margin-bottom: 6px;
 }
-input[type=email], input[type=password], input[type=text] {
+input[type=email], input[type=password], input[type=text], input[type=number], select, textarea {
   width: 100%;
   padding: 10px 12px;
   border-radius: 8px;
@@ -46,8 +46,32 @@ input[type=email], input[type=password], input[type=text] {
   color: #e7e9ee;
   font-size: 14px;
   margin-bottom: 16px;
+  font-family: inherit;
 }
-input:focus { outline: none; border-color: #5b7cff; }
+select { appearance: auto; }
+textarea { resize: vertical; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: #5b7cff; }
+.checkbox-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.checkbox-row input[type=checkbox] { width: auto; margin: 0; }
+.checkbox-row label { margin: 0; }
+.form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0 14px; }
+.form-inline { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+.form-inline > * { margin-bottom: 0; }
+.tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid #21242e; }
+.tab-btn {
+  background: transparent; border: none; color: #8b92a3;
+  padding: 10px 16px; font-size: 13px; font-weight: 600;
+  border-bottom: 2px solid transparent; border-radius: 0;
+}
+.tab-btn.active { color: #e7e9ee; border-bottom-color: #5b7cff; }
+.tab-btn:hover { color: #cbd0dc; background: transparent; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+.danger-zone {
+  border: 1px solid #5c2530;
+  background: rgba(214,69,80,.05);
+}
+.danger-zone h2 { color: #ff9aa8; }
 button {
   cursor: pointer;
   font-size: 14px;
@@ -157,6 +181,36 @@ tr:hover td { background: #1a1d26; }
 .muted { color: #8b92a3; }
 .empty-row td { text-align: center; color: #8b92a3; padding: 24px; }
 .loading-row td { text-align: center; color: #8b92a3; padding: 24px; }
+
+/* ── Modal ──────────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+}
+.modal-box {
+  background: #171a21;
+  border: 1px solid #262a35;
+  border-radius: 12px;
+  padding: 24px;
+  width: 100%;
+  max-width: 440px;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+.modal-box h3 { margin: 0 0 16px; font-size: 16px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+.token-box {
+  font-family: monospace;
+  font-size: 12px;
+  word-break: break-all;
+  background: #10121a;
+  border: 1px solid #2c3140;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
 
 .grid-2 {
   display: grid;

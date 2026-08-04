@@ -29,14 +29,140 @@
       <div class="kpi-card"><div class="label">Total Revenue</div><div class="value" id="kpiRevenue">—</div></div>
     </div>
 
-    <div class="grid-2">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="owner" onclick="showTab('owner')">Owner Account</button>
+      <button class="tab-btn" data-tab="settings" onclick="showTab('settings')">Gym Settings</button>
+      <button class="tab-btn" data-tab="plans" onclick="showTab('plans')">Plans</button>
+      <button class="tab-btn" data-tab="staff" onclick="showTab('staff')">Staff</button>
+      <button class="tab-btn" data-tab="payments" onclick="showTab('payments')">Payments</button>
+      <button class="tab-btn" data-tab="danger" onclick="showTab('danger')">Danger Zone</button>
+    </div>
+
+    <!-- Owner Account -->
+    <div class="tab-panel active" id="tab-owner">
       <div class="panel">
-        <h2>Staff <span class="hint">most recent 20</span></h2>
-        <table>
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead>
-          <tbody id="staffBody"><tr class="loading-row"><td colspan="3">Loading…</td></tr></tbody>
-        </table>
+        <h2>Owner Account</h2>
+        <div id="ownerMissing" class="muted" style="display:none;">No owner account is linked to this gym.</div>
+        <form id="ownerForm">
+          <div class="form-row">
+            <div>
+              <label for="ownerNameInput">Name</label>
+              <input type="text" id="ownerNameInput" required>
+            </div>
+            <div>
+              <label for="ownerEmailInput">Email</label>
+              <input type="email" id="ownerEmailInput" required>
+            </div>
+          </div>
+          <button type="submit" class="btn-primary" style="width:auto;">Save Owner Details</button>
+        </form>
+
+        <hr style="border-color:#21242e; margin: 20px 0;">
+
+        <h2>Reset Owner Password</h2>
+        <form id="resetPasswordForm">
+          <label for="newPasswordInput">New Password</label>
+          <input type="password" id="newPasswordInput" minlength="6" required placeholder="At least 6 characters">
+          <button type="submit" class="btn-ghost" style="width:auto;">Reset Password</button>
+        </form>
+
+        <hr style="border-color:#21242e; margin: 20px 0;">
+
+        <h2>Support Access <span class="hint">log in as this gym's owner</span></h2>
+        <p class="muted" style="margin-top:-8px;">Generates a 2-hour OWNER token for troubleshooting. Doesn't change the owner's password.</p>
+        <button class="btn-ghost" style="width:auto;" onclick="impersonate()">Generate Owner Login Token</button>
       </div>
+    </div>
+
+    <!-- Gym Settings -->
+    <div class="tab-panel" id="tab-settings">
+      <div class="panel">
+        <h2>Gym Settings</h2>
+        <form id="settingsForm">
+          <div class="form-row">
+            <div>
+              <label for="setName">Gym Name</label>
+              <input type="text" id="setName" required>
+            </div>
+            <div>
+              <label for="setPhone">Phone</label>
+              <input type="text" id="setPhone">
+            </div>
+          </div>
+          <label for="setAddress">Address</label>
+          <input type="text" id="setAddress">
+          <div class="form-row">
+            <div>
+              <label for="setContactPerson">Contact Person</label>
+              <input type="text" id="setContactPerson">
+            </div>
+            <div>
+              <label for="setCurrency">Currency Symbol</label>
+              <input type="text" id="setCurrency" maxlength="5">
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label for="setCheckIn">Check-in Window (minutes)</label>
+              <input type="number" id="setCheckIn" min="1" max="60">
+            </div>
+            <div>
+              <label for="setTaxRate">Tax Rate (%)</label>
+              <input type="number" id="setTaxRate" min="0" max="100" step="0.01">
+            </div>
+          </div>
+          <button type="submit" class="btn-primary" style="width:auto;">Save Settings</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Plans -->
+    <div class="tab-panel" id="tab-plans">
+      <div class="panel">
+        <h2>Membership Plans</h2>
+        <table>
+          <thead><tr><th>Name</th><th>Duration</th><th>Fee</th><th>Members</th><th>Status</th><th></th></tr></thead>
+          <tbody id="plansBody"><tr class="loading-row"><td colspan="6">Loading…</td></tr></tbody>
+        </table>
+
+        <h2 style="margin-top:20px;">Add Plan</h2>
+        <form id="addPlanForm" class="form-inline">
+          <div><label>Name</label><input type="text" id="planName" required></div>
+          <div><label>Duration (days)</label><input type="number" id="planDuration" min="1" required></div>
+          <div><label>Fee</label><input type="number" id="planFee" min="0" step="0.01" required></div>
+          <button type="submit" class="btn-primary" style="width:auto;">Add Plan</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Staff -->
+    <div class="tab-panel" id="tab-staff">
+      <div class="panel">
+        <h2>Staff</h2>
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th></th></tr></thead>
+          <tbody id="staffBody"><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+        </table>
+
+        <h2 style="margin-top:20px;">Add Staff</h2>
+        <form id="addStaffForm" class="form-inline">
+          <div><label>Full Name</label><input type="text" id="staffName" required></div>
+          <div><label>Email</label><input type="email" id="staffEmail" required></div>
+          <div>
+            <label>Role</label>
+            <select id="staffRole">
+              <option value="RECEPTIONIST">Receptionist</option>
+              <option value="TRAINER">Trainer</option>
+            </select>
+          </div>
+          <div><label>Login Password (optional)</label><input type="password" id="staffPassword" minlength="6" placeholder="Leave blank = no login"></div>
+          <button type="submit" class="btn-primary" style="width:auto;">Add Staff</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Payments (read-only) -->
+    <div class="tab-panel" id="tab-payments">
       <div class="panel">
         <h2>Recent Payments <span class="hint">most recent 10</span></h2>
         <table>
@@ -45,11 +171,35 @@
         </table>
       </div>
     </div>
+
+    <!-- Danger Zone -->
+    <div class="tab-panel" id="tab-danger">
+      <div class="panel danger-zone">
+        <h2>Delete This Gym</h2>
+        <p class="muted">This permanently deletes the gym, its owner account, and all members, staff, plans, attendance, and payment records. This cannot be undone.</p>
+        <label for="deleteConfirmInput">Type the gym name to confirm:</label>
+        <input type="text" id="deleteConfirmInput" placeholder="">
+        <button class="btn-danger" style="width:auto;" onclick="deleteTenant()">Permanently Delete Gym</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Impersonation token modal -->
+  <div class="modal-overlay" id="tokenModal" style="display:none;">
+    <div class="modal-box">
+      <h3>Owner Login Token <span class="muted" style="font-weight:400;">(expires in 2 hours)</span></h3>
+      <div class="token-box" id="tokenBox"></div>
+      <div class="modal-actions">
+        <button class="btn-ghost btn-sm" onclick="copyToken()">Copy</button>
+        <button class="btn-primary btn-sm" style="width:auto;" onclick="closeTokenModal()">Close</button>
+      </div>
+    </div>
   </div>
 
   <script src="admin.js"></script>
   <script>
     const tenantId = new URLSearchParams(window.location.search).get('id');
+    let currentTenant = null;
 
     if (requireAdminAuth()) {
       const admin = getAdminInfo();
@@ -58,27 +208,50 @@
         document.getElementById('tenantHeader').innerHTML = '<h2>No gym ID provided.</h2>';
       } else {
         loadTenant();
+        loadPlans();
+        loadStaff();
       }
+    }
+
+    function showTab(name) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${name}`));
     }
 
     async function loadTenant() {
       try {
         const data = await adminFetch(`/api/admin/tenants/${tenantId}`);
+        currentTenant = data.tenant;
         renderHeader(data.tenant);
+
         document.getElementById('kpiMembers').textContent       = data.memberStats.total;
         document.getElementById('kpiActiveMembers').textContent = data.memberStats.active;
         document.getElementById('kpiStaffCount').textContent    = data.staff.length;
         document.getElementById('kpiRevenue').textContent       = fmtCurrency(data.revenue.total);
 
-        const staffBody = document.getElementById('staffBody');
-        staffBody.innerHTML = data.staff.length
-          ? data.staff.map(s => `<tr><td>${escapeHtml(s.fullName)}</td><td>${escapeHtml(s.email || '—')}</td><td>${escapeHtml(s.role)}</td></tr>`).join('')
-          : '<tr class="empty-row"><td colspan="3">No staff on record.</td></tr>';
-
         const paymentsBody = document.getElementById('paymentsBody');
         paymentsBody.innerHTML = data.recentPayments.length
           ? data.recentPayments.map(p => `<tr><td>${escapeHtml(p.memberName)}</td><td>${fmtCurrency(p.amount)}</td><td>${fmtDate(p.paymentDate)}</td></tr>`).join('')
           : '<tr class="empty-row"><td colspan="3">No payments on record.</td></tr>';
+
+        // Owner form
+        if (data.tenant.ownerName || data.tenant.ownerEmail) {
+          document.getElementById('ownerMissing').style.display = 'none';
+          document.getElementById('ownerForm').style.display = 'block';
+          document.getElementById('ownerNameInput').value = data.tenant.ownerName || '';
+          document.getElementById('ownerEmailInput').value = data.tenant.ownerEmail || '';
+        }
+
+        // Settings form
+        document.getElementById('setName').value          = data.tenant.name || '';
+        document.getElementById('setPhone').value         = data.tenant.phone || '';
+        document.getElementById('setAddress').value        = data.tenant.address || '';
+        document.getElementById('setContactPerson').value  = data.tenant.contactPerson || '';
+        document.getElementById('setCurrency').value       = data.tenant.currencySymbol || '$';
+        document.getElementById('setCheckIn').value        = data.tenant.checkInWindowMinutes || 15;
+        document.getElementById('setTaxRate').value        = data.tenant.taxRate || 0;
+
+        document.getElementById('deleteConfirmInput').placeholder = data.tenant.name;
       } catch (err) {
         document.getElementById('tenantHeader').innerHTML = `<h2>${escapeHtml(err.message)}</h2>`;
       }
@@ -113,6 +286,220 @@
           body: JSON.stringify({ isSuspended: suspend }),
         });
         loadTenant();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // ── Owner account ────────────────────────────────────────────────────
+    document.getElementById('ownerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        await adminFetch(`/api/admin/tenants/${tenantId}/owner`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            name: document.getElementById('ownerNameInput').value.trim(),
+            email: document.getElementById('ownerEmailInput').value.trim(),
+          }),
+        });
+        alert('Owner details updated.');
+        loadTenant();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    document.getElementById('resetPasswordForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = document.getElementById('newPasswordInput').value;
+      try {
+        await adminFetch(`/api/admin/tenants/${tenantId}/owner/reset-password`, {
+          method: 'POST',
+          body: JSON.stringify({ password }),
+        });
+        document.getElementById('newPasswordInput').value = '';
+        alert('Password reset successfully.');
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    let lastToken = '';
+    async function impersonate() {
+      try {
+        const data = await adminFetch(`/api/admin/tenants/${tenantId}/impersonate`, { method: 'POST' });
+        lastToken = data.token;
+        document.getElementById('tokenBox').textContent = data.token;
+        document.getElementById('tokenModal').style.display = 'flex';
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+    function closeTokenModal() { document.getElementById('tokenModal').style.display = 'none'; }
+    function copyToken() {
+      navigator.clipboard?.writeText(lastToken);
+    }
+
+    // ── Settings ─────────────────────────────────────────────────────────
+    document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        await adminFetch(`/api/admin/tenants/${tenantId}/settings`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            name: document.getElementById('setName').value.trim(),
+            phone: document.getElementById('setPhone').value.trim(),
+            address: document.getElementById('setAddress').value.trim(),
+            contactPerson: document.getElementById('setContactPerson').value.trim(),
+            currencySymbol: document.getElementById('setCurrency').value.trim() || '$',
+            checkInWindowMinutes: parseInt(document.getElementById('setCheckIn').value, 10) || 15,
+            taxRate: parseFloat(document.getElementById('setTaxRate').value) || 0,
+          }),
+        });
+        alert('Settings saved.');
+        loadTenant();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    // ── Plans ────────────────────────────────────────────────────────────
+    async function loadPlans() {
+      const tbody = document.getElementById('plansBody');
+      try {
+        const plans = await adminFetch(`/api/admin/tenants/${tenantId}/plans`);
+        tbody.innerHTML = plans.length
+          ? plans.map(planRowHtml).join('')
+          : '<tr class="empty-row"><td colspan="6">No plans yet.</td></tr>';
+      } catch (err) {
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="6">${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function planRowHtml(p) {
+      const statusBadge = p.isActive
+        ? '<span class="badge active">Active</span>'
+        : '<span class="badge suspended">Inactive</span>';
+      return `
+        <tr>
+          <td>${escapeHtml(p.name)}</td>
+          <td>${p.durationDays} days</td>
+          <td>${fmtCurrency(p.fee)}</td>
+          <td>${p._count?.members ?? 0}</td>
+          <td>${statusBadge}</td>
+          <td style="white-space:nowrap;">
+            <button class="btn-ghost btn-sm" onclick="togglePlanActive(${p.id}, ${!p.isActive})">${p.isActive ? 'Deactivate' : 'Activate'}</button>
+            <button class="btn-danger btn-sm" onclick="deletePlan(${p.id})">Delete</button>
+          </td>
+        </tr>`;
+    }
+
+    document.getElementById('addPlanForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        await adminFetch(`/api/admin/tenants/${tenantId}/plans`, {
+          method: 'POST',
+          body: JSON.stringify({
+            name: document.getElementById('planName').value.trim(),
+            durationDays: parseInt(document.getElementById('planDuration').value, 10),
+            fee: parseFloat(document.getElementById('planFee').value),
+          }),
+        });
+        document.getElementById('addPlanForm').reset();
+        loadPlans();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    async function togglePlanActive(planId, isActive) {
+      try {
+        await adminFetch(`/api/admin/tenants/${tenantId}/plans/${planId}`, {
+          method: 'PUT',
+          body: JSON.stringify({ isActive }),
+        });
+        loadPlans();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function deletePlan(planId) {
+      if (!confirm('Delete this plan?')) return;
+      try {
+        await adminFetch(`/api/admin/tenants/${tenantId}/plans/${planId}`, { method: 'DELETE' });
+        loadPlans();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // ── Staff ────────────────────────────────────────────────────────────
+    async function loadStaff() {
+      const tbody = document.getElementById('staffBody');
+      try {
+        const staff = await adminFetch(`/api/admin/tenants/${tenantId}/staff`);
+        tbody.innerHTML = staff.length
+          ? staff.map(staffRowHtml).join('')
+          : '<tr class="empty-row"><td colspan="5">No staff yet.</td></tr>';
+      } catch (err) {
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="5">${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function staffRowHtml(s) {
+      return `
+        <tr>
+          <td>${escapeHtml(s.fullName)}</td>
+          <td>${escapeHtml(s.email || '—')}</td>
+          <td>${escapeHtml(s.phone || '—')}</td>
+          <td>${escapeHtml(s.role)}</td>
+          <td><button class="btn-danger btn-sm" onclick="deleteStaff(${s.id})">Remove</button></td>
+        </tr>`;
+    }
+
+    document.getElementById('addStaffForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const password = document.getElementById('staffPassword').value;
+        await adminFetch(`/api/admin/tenants/${tenantId}/staff`, {
+          method: 'POST',
+          body: JSON.stringify({
+            fullName: document.getElementById('staffName').value.trim(),
+            email: document.getElementById('staffEmail').value.trim(),
+            role: document.getElementById('staffRole').value,
+            ...(password ? { password } : {}),
+          }),
+        });
+        document.getElementById('addStaffForm').reset();
+        loadStaff();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    async function deleteStaff(staffId) {
+      if (!confirm('Remove this staff member?')) return;
+      try {
+        await adminFetch(`/api/admin/tenants/${tenantId}/staff/${staffId}`, { method: 'DELETE' });
+        loadStaff();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // ── Delete tenant ────────────────────────────────────────────────────
+    async function deleteTenant() {
+      const typed = document.getElementById('deleteConfirmInput').value.trim();
+      if (!currentTenant || typed !== currentTenant.name) {
+        alert('Type the exact gym name to confirm deletion.');
+        return;
+      }
+      if (!confirm('This is permanent. Delete this gym and all its data?')) return;
+      try {
+        await adminFetch(`/api/admin/tenants/${tenantId}`, { method: 'DELETE' });
+        alert('Gym deleted.');
+        window.location.href = 'dashboard.html';
       } catch (err) {
         alert(err.message);
       }

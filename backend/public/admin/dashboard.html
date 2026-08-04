@@ -48,6 +48,7 @@
         <input type="text" id="searchInput" placeholder="Search by gym name or owner email…">
         <button class="btn-ghost btn-sm" onclick="loadTenants()">Search</button>
         <button class="btn-ghost btn-sm" onclick="clearSearch()">Clear</button>
+        <button class="btn-primary btn-sm" style="width:auto; margin-left:auto;" onclick="openNewGymModal()">+ New Gym</button>
       </div>
       <table>
         <thead>
@@ -66,6 +67,43 @@
           <tr class="loading-row"><td colspan="8">Loading…</td></tr>
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- New Gym modal -->
+  <div class="modal-overlay" id="newGymModal" style="display:none;">
+    <div class="modal-box">
+      <h3>Create New Gym</h3>
+      <form id="newGymForm">
+        <label for="ngName">Gym Name</label>
+        <input type="text" id="ngName" required>
+        <div class="form-row">
+          <div>
+            <label for="ngAddress">Address</label>
+            <input type="text" id="ngAddress">
+          </div>
+          <div>
+            <label for="ngPhone">Phone</label>
+            <input type="text" id="ngPhone">
+          </div>
+        </div>
+        <label for="ngCurrency">Currency Symbol</label>
+        <input type="text" id="ngCurrency" maxlength="5" value="$">
+
+        <hr style="border-color:#21242e; margin: 12px 0;">
+
+        <label for="ngOwnerName">Owner Name</label>
+        <input type="text" id="ngOwnerName" required>
+        <label for="ngOwnerEmail">Owner Email</label>
+        <input type="email" id="ngOwnerEmail" required>
+        <label for="ngOwnerPassword">Owner Password</label>
+        <input type="password" id="ngOwnerPassword" minlength="6" required placeholder="At least 6 characters">
+
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost btn-sm" onclick="closeNewGymModal()">Cancel</button>
+          <button type="submit" class="btn-primary btn-sm" style="width:auto;">Create Gym</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -153,6 +191,35 @@
           </td>
         </tr>`;
     }
+
+    function openNewGymModal() { document.getElementById('newGymModal').style.display = 'flex'; }
+    function closeNewGymModal() {
+      document.getElementById('newGymModal').style.display = 'none';
+      document.getElementById('newGymForm').reset();
+    }
+
+    document.getElementById('newGymForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        await adminFetch('/api/admin/tenants', {
+          method: 'POST',
+          body: JSON.stringify({
+            gymName: document.getElementById('ngName').value.trim(),
+            address: document.getElementById('ngAddress').value.trim(),
+            phone: document.getElementById('ngPhone').value.trim(),
+            currencySymbol: document.getElementById('ngCurrency').value.trim() || '$',
+            ownerName: document.getElementById('ngOwnerName').value.trim(),
+            ownerEmail: document.getElementById('ngOwnerEmail').value.trim(),
+            ownerPassword: document.getElementById('ngOwnerPassword').value,
+          }),
+        });
+        closeNewGymModal();
+        loadTenants();
+        loadAnalytics();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
 
     async function toggleStatus(id, suspend) {
       const action = suspend ? 'suspend' : 'reactivate';
