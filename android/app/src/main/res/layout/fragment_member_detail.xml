@@ -148,6 +148,81 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- ── Personal & Health Info card ──────────────────────────── -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardHealthInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Personal &amp; Health Info"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"
+                        android:layout_marginBottom="10dp" />
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:layout_marginBottom="6dp">
+                        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                            android:text="Date of Birth" android:textSize="12sp" android:textColor="@color/text_secondary" />
+                        <TextView android:id="@+id/tvDob" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                            android:textSize="13sp" android:textColor="@color/text_primary" android:text="—" />
+                    </LinearLayout>
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:layout_marginBottom="6dp">
+                        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                            android:text="Gender" android:textSize="12sp" android:textColor="@color/text_secondary" />
+                        <TextView android:id="@+id/tvGender" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                            android:textSize="13sp" android:textColor="@color/text_primary" android:text="—" />
+                    </LinearLayout>
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:layout_marginBottom="6dp">
+                        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                            android:text="Blood Group" android:textSize="12sp" android:textColor="@color/text_secondary" />
+                        <TextView android:id="@+id/tvBloodGroup" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                            android:textSize="13sp" android:textStyle="bold" android:textColor="#C62828" android:text="—" />
+                    </LinearLayout>
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:layout_marginBottom="6dp">
+                        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                            android:text="Referral Source" android:textSize="12sp" android:textColor="@color/text_secondary" />
+                        <TextView android:id="@+id/tvReferralSource" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                            android:textSize="13sp" android:textColor="@color/text_primary" android:text="—" />
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:background="#E0E0E0" android:layout_marginTop="4dp" android:layout_marginBottom="10dp" />
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Emergency Contact" android:textSize="12sp" android:textColor="@color/text_secondary"
+                        android:layout_marginBottom="2dp" />
+                    <TextView android:id="@+id/tvEmergencyContact" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textSize="14sp" android:textStyle="bold" android:textColor="@color/text_primary" android:text="—"
+                        android:layout_marginBottom="10dp" />
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Health Notes (conditions / injuries / allergies / medication)"
+                        android:textSize="12sp" android:textColor="@color/text_secondary" android:layout_marginBottom="2dp" />
+                    <TextView android:id="@+id/tvHealthNotes" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:textSize="13sp" android:textColor="#E65100" android:text="—" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- ── Payment Status card ──────────────────────────────────── -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"

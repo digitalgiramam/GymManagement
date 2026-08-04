@@ -56,6 +56,25 @@ class MemberDetailFragment : Fragment() {
     private var availablePlans: List<Plan>     = emptyList()
     private var availableTrainers: List<Staff> = emptyList()
 
+    private val genderOptions     = listOf("Male", "Female", "Other")
+    private val bloodGroupOptions = listOf("Unknown", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-")
+    private val referralOptions   = listOf(
+        "Walk-in", "Friend/Family Referral", "Social Media",
+        "Online Search", "Advertisement", "Existing Member", "Other",
+    )
+
+    private fun android.widget.Spinner.setSimpleOptions(options: List<String>, selected: String?) {
+        adapter = ArrayAdapter(
+            requireContext(), android.R.layout.simple_spinner_item, options,
+        ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        setSelection(options.indexOf(selected).coerceAtLeast(0))
+    }
+
+    private fun android.widget.Spinner.selectedOrNull(options: List<String>): String? {
+        val value = options.getOrNull(selectedItemPosition)
+        return if (value == "Unknown") null else value
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?,
@@ -218,6 +237,22 @@ class MemberDetailFragment : Fragment() {
         }
 
         attendanceAdapter.submitList(m.attendance)
+
+        // ── Personal & Health Info card ──────────────────────────────────
+        binding.tvDob.text = m.dateOfBirth?.let { formatDate(it) } ?: "—"
+        binding.tvGender.text = m.gender ?: "—"
+        binding.tvBloodGroup.text = m.bloodGroup ?: "—"
+        binding.tvReferralSource.text = m.referralSource ?: "—"
+
+        binding.tvEmergencyContact.text = when {
+            !m.emergencyContactName.isNullOrBlank() && !m.emergencyContactPhone.isNullOrBlank() ->
+                "${m.emergencyContactName} — ${m.emergencyContactPhone}"
+            !m.emergencyContactName.isNullOrBlank() -> m.emergencyContactName
+            !m.emergencyContactPhone.isNullOrBlank() -> m.emergencyContactPhone
+            else -> "—"
+        }
+
+        binding.tvHealthNotes.text = m.healthNotes?.takeIf { it.isNotBlank() } ?: "None recorded"
     }
 
     private fun formatDate(iso: String): String = try {
@@ -281,6 +316,32 @@ class MemberDetailFragment : Fragment() {
             ).show()
         }
 
+        // ── Personal & health fields ────────────────────────────────────────
+        val dobCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+        var dobSet = false
+        m.dateOfBirth?.let {
+            try { dobCal.time = isoFmt.parse(it) ?: return@let; dobSet = true; db.etDob.setText(dispFmt.format(dobCal.time)) } catch (_: Exception) {}
+        }
+        db.etDob.setOnClickListener {
+            DatePickerDialog(
+                requireContext(),
+                { _, year, month, day ->
+                    dobCal.set(year, month, day, 0, 0, 0)
+                    dobCal.set(Calendar.MILLISECOND, 0)
+                    dobSet = true
+                    db.etDob.setText(dispFmt.format(dobCal.time))
+                },
+                dobCal.get(Calendar.YEAR), dobCal.get(Calendar.MONTH), dobCal.get(Calendar.DAY_OF_MONTH),
+            ).show()
+        }
+
+        db.spinnerGender.setSimpleOptions(genderOptions, m.gender)
+        db.spinnerBloodGroup.setSimpleOptions(bloodGroupOptions, m.bloodGroup ?: "Unknown")
+        db.spinnerReferralSource.setSimpleOptions(referralOptions, m.referralSource)
+        db.etEmergencyName.setText(m.emergencyContactName ?: "")
+        db.etEmergencyPhone.setText(m.emergencyContactPhone ?: "")
+        db.etHealthNotes.setText(m.healthNotes ?: "")
+
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.title_edit_member)
             .setView(db.root)
@@ -312,6 +373,13 @@ class MemberDetailFragment : Fragment() {
                         joinDate  = isoFmt.format(cal.time),
                         trainerId = trainerId,
                         password  = password,
+                        dateOfBirth = if (dobSet) isoFmt.format(dobCal.time) else null,
+                        gender = db.spinnerGender.selectedOrNull(genderOptions),
+                        bloodGroup = db.spinnerBloodGroup.selectedOrNull(bloodGroupOptions),
+                        emergencyContactName = db.etEmergencyName.text?.toString()?.trim()?.ifBlank { null },
+                        emergencyContactPhone = db.etEmergencyPhone.text?.toString()?.trim()?.ifBlank { null },
+                        referralSource = db.spinnerReferralSource.selectedOrNull(referralOptions),
+                        healthNotes = db.etHealthNotes.text?.toString()?.trim()?.ifBlank { null },
                     )
                 )
             }

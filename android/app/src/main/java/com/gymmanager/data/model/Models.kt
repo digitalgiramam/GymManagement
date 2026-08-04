@@ -131,6 +131,14 @@ data class Member(
     val trainerName: String?         = null,
     /** Height in cm — used to compute BMI in progress tracking. */
     val heightCm: Double?            = null,
+    val dateOfBirth: String?          = null,
+    val gender: String?               = null,
+    val bloodGroup: String?           = null,
+    val emergencyContactName: String? = null,
+    val emergencyContactPhone: String? = null,
+    val referralSource: String?       = null,
+    /** Medical conditions, injuries, allergies, regular medication — free text. */
+    val healthNotes: String?          = null,
 )
 
 data class MemberDetail(
@@ -157,6 +165,13 @@ data class MemberDetail(
     val trainerId: Int?              = null,
     val trainerName: String?         = null,
     val heightCm: Double?            = null,
+    val dateOfBirth: String?          = null,
+    val gender: String?               = null,
+    val bloodGroup: String?           = null,
+    val emergencyContactName: String? = null,
+    val emergencyContactPhone: String? = null,
+    val referralSource: String?       = null,
+    val healthNotes: String?          = null,
 )
 
 data class CreateMemberRequest(
@@ -172,6 +187,13 @@ data class CreateMemberRequest(
     /** Optional login password for member portal access */
     val password: String? = null,
     val heightCm: Double? = null,
+    val dateOfBirth: String? = null,
+    val gender: String? = null,
+    val bloodGroup: String? = null,
+    val emergencyContactName: String? = null,
+    val emergencyContactPhone: String? = null,
+    val referralSource: String? = null,
+    val healthNotes: String? = null,
 )
 
 data class UpdateMemberRequest(
@@ -185,6 +207,13 @@ data class UpdateMemberRequest(
     val trainerId: Int? = null,
     val password: String? = null,
     val heightCm: Double? = null,
+    val dateOfBirth: String? = null,
+    val gender: String? = null,
+    val bloodGroup: String? = null,
+    val emergencyContactName: String? = null,
+    val emergencyContactPhone: String? = null,
+    val referralSource: String? = null,
+    val healthNotes: String? = null,
 )
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -26,6 +26,14 @@ const memberSchema = z.object({
   password:  z.string().min(6, 'Password must be at least 6 characters').optional().or(z.literal('')).transform(v => v || null),
   /** Used to compute BMI for progress tracking — optional, in centimeters. */
   heightCm:  z.number().positive().max(300).optional().nullable(),
+  dateOfBirth:           z.string().datetime().optional().nullable(),
+  gender:                z.string().max(20).optional().or(z.literal('')).transform(v => v || null),
+  bloodGroup:            z.string().max(10).optional().or(z.literal('')).transform(v => v || null),
+  emergencyContactName:  z.string().max(150).optional().or(z.literal('')).transform(v => v || null),
+  emergencyContactPhone: z.string().max(20).optional().or(z.literal('')).transform(v => v || null),
+  referralSource:        z.string().max(50).optional().or(z.literal('')).transform(v => v || null),
+  /** Medical conditions, injuries, allergies, regular medication — free text. */
+  healthNotes:           z.string().max(1000).optional().or(z.literal('')).transform(v => v || null),
 });
 
 const memberUpdateSchema = memberSchema.partial();
@@ -177,15 +185,22 @@ router.post('/', async (req, res) => {
   const result   = memberSchema.safeParse(req.body);
   if (!result.success) return res.status(400).json({ error: result.error.errors[0].message });
 
-  const { fullName, phone, email, location, planId, status, joinDate, trainerId, password, heightCm } = result.data;
+  const {
+    fullName, phone, email, location, planId, status, joinDate, trainerId, password, heightCm,
+    dateOfBirth, gender, bloodGroup, emergencyContactName, emergencyContactPhone, referralSource, healthNotes,
+  } = result.data;
 
   try {
     const passwordHash = password ? await bcrypt.hash(password, 12) : null;
     const { rows } = await query(
-      `INSERT INTO members ("tenantId","fullName",phone,email,location,"planId",status,"joinDate","trainerId","passwordHash","heightCm")
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      `INSERT INTO members
+         ("tenantId","fullName",phone,email,location,"planId",status,"joinDate","trainerId","passwordHash","heightCm",
+          "dateOfBirth",gender,"bloodGroup","emergencyContactName","emergencyContactPhone","referralSource","healthNotes")
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
       [tenantId, fullName, phone, email ?? null, location ?? null, planId, status,
-       joinDate ? new Date(joinDate) : new Date(), trainerId ?? null, passwordHash, heightCm ?? null],
+       joinDate ? new Date(joinDate) : new Date(), trainerId ?? null, passwordHash, heightCm ?? null,
+       dateOfBirth ? new Date(dateOfBirth) : null, gender ?? null, bloodGroup ?? null,
+       emergencyContactName ?? null, emergencyContactPhone ?? null, referralSource ?? null, healthNotes ?? null],
     );
     const { rows: planRows } = await query(`SELECT * FROM plans WHERE id = $1`, [planId]);
     return res.status(201).json({ ...rows[0], plan: planRows[0] ?? null });
@@ -220,6 +235,13 @@ router.put('/:id', async (req, res) => {
   if (data.joinDate  !== undefined) { sets.push(`"joinDate" = $${p++}`);   vals.push(new Date(data.joinDate)); }
   if (data.trainerId !== undefined) { sets.push(`"trainerId" = $${p++}`);  vals.push(data.trainerId ?? null); }
   if (data.heightCm  !== undefined) { sets.push(`"heightCm" = $${p++}`);   vals.push(data.heightCm ?? null); }
+  if (data.dateOfBirth           !== undefined) { sets.push(`"dateOfBirth" = $${p++}`);           vals.push(data.dateOfBirth ? new Date(data.dateOfBirth) : null); }
+  if (data.gender                !== undefined) { sets.push(`gender = $${p++}`);                  vals.push(data.gender); }
+  if (data.bloodGroup            !== undefined) { sets.push(`"bloodGroup" = $${p++}`);            vals.push(data.bloodGroup); }
+  if (data.emergencyContactName  !== undefined) { sets.push(`"emergencyContactName" = $${p++}`);  vals.push(data.emergencyContactName); }
+  if (data.emergencyContactPhone !== undefined) { sets.push(`"emergencyContactPhone" = $${p++}`); vals.push(data.emergencyContactPhone); }
+  if (data.referralSource        !== undefined) { sets.push(`"referralSource" = $${p++}`);        vals.push(data.referralSource); }
+  if (data.healthNotes           !== undefined) { sets.push(`"healthNotes" = $${p++}`);           vals.push(data.healthNotes); }
   if (data.password) {
     const hash = await bcrypt.hash(data.password, 12);
     sets.push(`"passwordHash" = $${p++}`);
