@@ -21,8 +21,21 @@ const jwt     = require('jsonwebtoken');
 const bcrypt  = require('bcryptjs');
 const { z }   = require('zod');
 const { query, transaction } = require('../lib/db');
+const { PAYMENT_SELECT, formatPayment, recalculateMemberExpiry } = require('../lib/payments');
 
 const router = express.Router();
+
+function csvCell(value) {
+  if (value === null || value === undefined) return '';
+  const str = String(value);
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+function toCSV(rows) {
+  return rows.map(row => row.map(csvCell).join(',')).join('\n');
+}
 
 /** Loads a tenant row or sends a 404. Returns the row, or null (response already sent). */
 async function loadTenantOr404(req, res) {
@@ -35,6 +48,7 @@ async function loadTenantOr404(req, res) {
 
 // ── GET /api/admin/analytics ────────────────────────────────────────────────
 router.get('/analytics', async (req, res) => {
+  const months = Math.max(1, Math.min(24, parseInt(req.query.months, 10) || 6));
   try {
     const { rows: totals } = await query(`
       SELECT
@@ -46,23 +60,25 @@ router.get('/analytics', async (req, res) => {
         (SELECT COALESCE(SUM(amount), 0) FROM payments)                  AS "totalRevenue"
     `);
 
-    // Tenant signups per month, last 6 months
-    const { rows: signupGrowth } = await query(`
-      SELECT to_char(date_trunc('month', "createdAt"), 'YYYY-MM') AS month,
-             COUNT(*) AS count
-      FROM tenants
-      WHERE "createdAt" >= NOW() - INTERVAL '6 months'
-      GROUP BY 1 ORDER BY 1
-    `);
+    // Tenant signups per month, last N months
+    const { rows: signupGrowth } = await query(
+      `SELECT to_char(date_trunc('month', "createdAt"), 'YYYY-MM') AS month,
+              COUNT(*) AS count
+       FROM tenants
+       WHERE "createdAt" >= NOW() - ($1 || ' months')::INTERVAL
+       GROUP BY 1 ORDER BY 1`,
+      [months],
+    );
 
-    // Revenue per month, last 6 months (platform-wide, across all tenants)
-    const { rows: revenueGrowth } = await query(`
-      SELECT to_char(date_trunc('month', "paymentDate"), 'YYYY-MM') AS month,
-             COALESCE(SUM(amount), 0) AS total
-      FROM payments
-      WHERE "paymentDate" >= NOW() - INTERVAL '6 months'
-      GROUP BY 1 ORDER BY 1
-    `);
+    // Revenue per month, last N months (platform-wide, across all tenants)
+    const { rows: revenueGrowth } = await query(
+      `SELECT to_char(date_trunc('month', "paymentDate"), 'YYYY-MM') AS month,
+              COALESCE(SUM(amount), 0) AS total
+       FROM payments
+       WHERE "paymentDate" >= NOW() - ($1 || ' months')::INTERVAL
+       GROUP BY 1 ORDER BY 1`,
+      [months],
+    );
 
     const t = totals[0];
     return res.json({
@@ -588,6 +604,222 @@ router.delete('/tenants/:id/staff/:staffId', async (req, res) => {
   } catch (err) {
     console.error('[admin/tenants/:id/staff/:staffId/DELETE]', err);
     return res.status(500).json({ error: 'Failed to remove staff member.' });
+  }
+});
+
+// ── Lightweight lookups for the Payments form ───────────────────────────────
+router.get('/tenants/:id/members-lite', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid tenant ID.' });
+  try {
+    const { rows } = await query(
+      `SELECT id, "fullName", phone, "planId" FROM members WHERE "tenantId" = $1 ORDER BY "fullName" ASC`,
+      [id],
+    );
+    return res.json(rows);
+  } catch (err) {
+    console.error('[admin/tenants/:id/members-lite/GET]', err);
+    return res.status(500).json({ error: 'Failed to fetch members.' });
+  }
+});
+
+router.get('/tenants/:id/payment-methods', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid tenant ID.' });
+  try {
+    const { rows } = await query(
+      `SELECT * FROM payment_methods WHERE "tenantId" = $1 AND "isActive" = true ORDER BY name`,
+      [id],
+    );
+    return res.json(rows);
+  } catch (err) {
+    console.error('[admin/tenants/:id/payment-methods/GET]', err);
+    return res.status(500).json({ error: 'Failed to fetch payment methods.' });
+  }
+});
+
+// ── Payments — manage on the owner's behalf ─────────────────────────────────
+router.get('/tenants/:id/payments', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid tenant ID.' });
+  try {
+    const { rows } = await query(
+      `${PAYMENT_SELECT} WHERE p."tenantId" = $1 ORDER BY p."paymentDate" DESC, p.id DESC LIMIT 200`,
+      [id],
+    );
+    return res.json(rows.map(formatPayment));
+  } catch (err) {
+    console.error('[admin/tenants/:id/payments/GET]', err);
+    return res.status(500).json({ error: 'Failed to fetch payments.' });
+  }
+});
+
+const adminPaymentSchema = z.object({
+  memberId:    z.number().int().positive(),
+  amount:      z.number().positive('Amount must be greater than 0'),
+  methodId:    z.number().int().positive(),
+  notes:       z.string().max(500).nullable().optional(),
+  paymentDate: z.string().datetime().optional(),
+});
+
+router.post('/tenants/:id/payments', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid tenant ID.' });
+
+  const parsed = adminPaymentSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
+
+  const { memberId, amount, methodId, notes, paymentDate } = parsed.data;
+
+  try {
+    const newId = await transaction(async (client) => {
+      const { rows: mRows } = await client.query(
+        `SELECT m."membershipExpiry", p.id AS "planId", p."durationDays", p.fee AS "planFee"
+         FROM   members m JOIN plans p ON p.id = m."planId"
+         WHERE  m.id = $1 AND m."tenantId" = $2`,
+        [memberId, id],
+      );
+      if (!mRows[0]) { const e = new Error('Member not found.'); e.status = 404; throw e; }
+
+      const { rows: pmRows } = await client.query(
+        `SELECT id FROM payment_methods WHERE id = $1 AND "tenantId" = $2`,
+        [methodId, id],
+      );
+      if (!pmRows[0]) { const e = new Error('Payment method not found.'); e.status = 404; throw e; }
+
+      const { planId, durationDays: planDurationDays, planFee } = mRows[0];
+      const payDate = paymentDate ? new Date(paymentDate) : new Date();
+
+      const { rows: pRows } = await client.query(
+        `INSERT INTO payments
+           ("tenantId","memberId","methodId","planId","planDurationDays","planFee",amount,notes,"paymentDate")
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         RETURNING id`,
+        [id, memberId, methodId, planId, planDurationDays, planFee, amount, notes ?? null, payDate],
+      );
+
+      await recalculateMemberExpiry(client, memberId, id);
+      await client.query(`UPDATE members SET status = 'Active' WHERE id = $1 AND "tenantId" = $2`, [memberId, id]);
+
+      return pRows[0].id;
+    });
+
+    const { rows } = await query(`${PAYMENT_SELECT} WHERE p.id = $1`, [newId]);
+    return res.status(201).json(formatPayment(rows[0]));
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error('[admin/tenants/:id/payments/POST]', err);
+    return res.status(500).json({ error: 'Failed to record payment.' });
+  }
+});
+
+const adminPaymentUpdateSchema = z.object({
+  amount:   z.number().positive().optional(),
+  methodId: z.number().int().positive().optional(),
+  notes:    z.string().max(500).nullable().optional(),
+});
+
+router.put('/tenants/:id/payments/:paymentId', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const paymentId = parseInt(req.params.paymentId, 10);
+  if (isNaN(id) || isNaN(paymentId)) return res.status(400).json({ error: 'Invalid ID.' });
+
+  const parsed = adminPaymentUpdateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
+
+  try {
+    await transaction(async (client) => {
+      const { rows } = await client.query(
+        `SELECT * FROM payments WHERE id = $1 AND "tenantId" = $2`, [paymentId, id],
+      );
+      if (!rows[0]) { const e = new Error('Payment not found.'); e.status = 404; throw e; }
+
+      const { amount, methodId, notes } = parsed.data;
+
+      if (methodId !== undefined) {
+        const { rows: pmRows } = await client.query(
+          `SELECT id FROM payment_methods WHERE id = $1 AND "tenantId" = $2`, [methodId, id],
+        );
+        if (!pmRows[0]) { const e = new Error('Payment method not found.'); e.status = 404; throw e; }
+      }
+
+      const sets = []; const vals = []; let p = 1;
+      if (amount   !== undefined) { sets.push(`amount = $${p++}`);      vals.push(amount); }
+      if (methodId !== undefined) { sets.push(`"methodId" = $${p++}`);  vals.push(methodId); }
+      if ('notes' in parsed.data) { sets.push(`notes = $${p++}`);       vals.push(notes ?? null); }
+
+      if (sets.length > 0) {
+        vals.push(paymentId, id);
+        await client.query(
+          `UPDATE payments SET ${sets.join(', ')} WHERE id = $${p} AND "tenantId" = $${p + 1}`, vals,
+        );
+      }
+
+      await recalculateMemberExpiry(client, rows[0].memberId, id);
+    });
+
+    const { rows } = await query(`${PAYMENT_SELECT} WHERE p.id = $1`, [paymentId]);
+    return res.json(formatPayment(rows[0]));
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error('[admin/tenants/:id/payments/:paymentId/PUT]', err);
+    return res.status(500).json({ error: 'Failed to update payment.' });
+  }
+});
+
+// ── CSV Exports — support/reporting ─────────────────────────────────────────
+router.get('/tenants/:id/export/members', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid tenant ID.' });
+  try {
+    const { rows } = await query(
+      `SELECT m.id, m."fullName", m.phone, m.email, m.location,
+              p.name AS plan_name, p.fee AS plan_fee, m.status, m."joinDate"
+       FROM members m JOIN plans p ON p.id = m."planId"
+       WHERE m."tenantId" = $1
+       ORDER BY m."createdAt" DESC`,
+      [id],
+    );
+    const header = ['ID', 'Full Name', 'Phone', 'Email', 'Location', 'Plan', 'Plan Fee', 'Status', 'Join Date'];
+    const csvRows = rows.map(m => [
+      m.id, m.fullName, m.phone, m.email, m.location,
+      m.plan_name, m.plan_fee, m.status,
+      m.joinDate ? new Date(m.joinDate).toISOString().split('T')[0] : '',
+    ]);
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="members.csv"');
+    return res.send(toCSV([header, ...csvRows]));
+  } catch (err) {
+    console.error('[admin/tenants/:id/export/members]', err);
+    return res.status(500).json({ error: 'Failed to export members.' });
+  }
+});
+
+router.get('/tenants/:id/export/payments', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid tenant ID.' });
+  try {
+    const { rows } = await query(
+      `SELECT p.id, p."paymentDate", m."fullName", m.phone, p.amount, pm.name AS method_name, p.notes
+       FROM payments p
+       JOIN members m ON m.id = p."memberId"
+       JOIN payment_methods pm ON pm.id = p."methodId"
+       WHERE p."tenantId" = $1
+       ORDER BY p."paymentDate" DESC`,
+      [id],
+    );
+    const header = ['ID', 'Date', 'Member', 'Phone', 'Amount', 'Method', 'Notes'];
+    const csvRows = rows.map(p => [
+      p.id,
+      p.paymentDate ? new Date(p.paymentDate).toISOString().split('T')[0] : '',
+      p.fullName, p.phone, p.amount, p.method_name, p.notes,
+    ]);
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="payments.csv"');
+    return res.send(toCSV([header, ...csvRows]));
+  } catch (err) {
+    console.error('[admin/tenants/:id/export/payments]', err);
+    return res.status(500).json({ error: 'Failed to export payments.' });
   }
 });
 

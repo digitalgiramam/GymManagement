@@ -220,3 +220,19 @@ tr:hover td { background: #1a1d26; }
 @media (max-width: 800px) {
   .grid-2 { grid-template-columns: 1fr; }
 }
+
+.report-block { margin-bottom: 22px; }
+.report-block h3 { font-size: 14px; margin: 0 0 10px; color: #cbd0dc; }
+.report-meta { color: #8b92a3; font-size: 12px; margin-bottom: 20px; }
+
+@media print {
+  body { background: #fff; color: #111; }
+  .topbar, .tabs, .back-link, .kpi-grid, button, .no-print { display: none !important; }
+  .tab-panel { display: none !important; }
+  #tab-report { display: block !important; }
+  .panel { background: #fff; border-color: #ccc; }
+  th, td { border-color: #ccc; color: #111; }
+  th { color: #555; }
+  .muted { color: #555; }
+  a { color: #111; text-decoration: none; }
+}

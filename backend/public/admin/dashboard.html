@@ -5,11 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard — Super Admin Portal</title>
 <link rel="stylesheet" href="admin.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 </head>
 <body>
   <div class="topbar">
     <div class="brand">Gym<span>SaaS</span> · Platform Admin</div>
     <div class="topbar-right">
+      <a href="reports.html" class="btn-ghost btn-sm" style="display:inline-block; text-decoration:none;">Platform Reports</a>
       <span id="adminName"></span>
       <button class="btn-ghost btn-sm" onclick="logoutAdmin()">Log out</button>
     </div>
@@ -23,22 +25,19 @@
       <div class="kpi-card"><div class="label">Total Members</div><div class="value" id="kpiMembers">—</div></div>
       <div class="kpi-card"><div class="label">Total Staff</div><div class="value" id="kpiStaff">—</div></div>
       <div class="kpi-card"><div class="label">Platform Revenue</div><div class="value" id="kpiRevenue">—</div></div>
+      <div class="kpi-card"><div class="label">Avg Revenue / Gym</div><div class="value" id="kpiAvgRevenue">—</div></div>
+      <div class="kpi-card"><div class="label">Avg Members / Gym</div><div class="value" id="kpiAvgMembers">—</div></div>
+      <div class="kpi-card"><div class="label">Signups This Month <span class="hint">vs last month</span></div><div class="value" id="kpiSignupDelta">—</div></div>
     </div>
 
     <div class="grid-2">
       <div class="panel">
         <h2>New Gym Signups <span class="hint">last 6 months</span></h2>
-        <table id="signupTable">
-          <thead><tr><th>Month</th><th>Signups</th></tr></thead>
-          <tbody><tr class="loading-row"><td colspan="2">Loading…</td></tr></tbody>
-        </table>
+        <canvas id="signupChart" height="180"></canvas>
       </div>
       <div class="panel">
         <h2>Platform Revenue <span class="hint">last 6 months, across all gyms</span></h2>
-        <table id="revenueTable">
-          <thead><tr><th>Month</th><th>Revenue</th></tr></thead>
-          <tbody><tr class="loading-row"><td colspan="2">Loading…</td></tr></tbody>
-        </table>
+        <canvas id="revenueChart" height="180"></canvas>
       </div>
     </div>
 
@@ -87,8 +86,13 @@
             <input type="text" id="ngPhone">
           </div>
         </div>
-        <label for="ngCurrency">Currency Symbol</label>
-        <input type="text" id="ngCurrency" maxlength="5" value="$">
+        <label for="ngCurrency">Currency</label>
+        <select id="ngCurrency">
+          <option value="₹">₹  Rs  — Indian Rupee</option>
+          <option value="AED">AED — UAE Dirham</option>
+          <option value="$" selected>$  USD — US Dollar</option>
+          <option value="S$">S$ SGD — Singapore Dollar</option>
+        </select>
 
         <hr style="border-color:#21242e; margin: 12px 0;">
 
@@ -125,6 +129,9 @@
       loadTenants();
     }
 
+    let signupChartInstance = null;
+    let revenueChartInstance = null;
+
     async function loadAnalytics() {
       try {
         const data = await adminFetch('/api/admin/analytics');
@@ -135,18 +142,64 @@
         document.getElementById('kpiStaff').textContent     = data.totalStaff;
         document.getElementById('kpiRevenue').textContent   = fmtCurrency(data.totalRevenue);
 
-        const signupBody = document.querySelector('#signupTable tbody');
-        signupBody.innerHTML = data.signupGrowth.length
-          ? data.signupGrowth.map(r => `<tr><td>${fmtMonth(r.month)}</td><td>${r.count}</td></tr>`).join('')
-          : '<tr class="empty-row"><td colspan="2">No signups in this period.</td></tr>';
+        const avgRevenue = data.totalTenants ? data.totalRevenue / data.totalTenants : 0;
+        const avgMembers = data.totalTenants ? data.totalMembers / data.totalTenants : 0;
+        document.getElementById('kpiAvgRevenue').textContent = fmtCurrency(avgRevenue);
+        document.getElementById('kpiAvgMembers').textContent = avgMembers.toFixed(1);
 
-        const revenueBody = document.querySelector('#revenueTable tbody');
-        revenueBody.innerHTML = data.revenueGrowth.length
-          ? data.revenueGrowth.map(r => `<tr><td>${fmtMonth(r.month)}</td><td>${fmtCurrency(r.total)}</td></tr>`).join('')
-          : '<tr class="empty-row"><td colspan="2">No revenue in this period.</td></tr>';
+        const g = data.signupGrowth;
+        const thisMonth = g[g.length - 1]?.count ?? 0;
+        const lastMonth = g[g.length - 2]?.count ?? 0;
+        const delta = thisMonth - lastMonth;
+        const deltaStr = delta > 0 ? `+${delta}` : `${delta}`;
+        document.getElementById('kpiSignupDelta').textContent = `${thisMonth} (${deltaStr})`;
+
+        renderSignupChart(data.signupGrowth);
+        renderRevenueChart(data.revenueGrowth);
       } catch (err) {
         console.error(err);
       }
+    }
+
+    function renderSignupChart(rows) {
+      const ctx = document.getElementById('signupChart');
+      if (signupChartInstance) signupChartInstance.destroy();
+      signupChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: rows.map(r => fmtMonth(r.month)),
+          datasets: [{ label: 'New Gyms', data: rows.map(r => r.count), backgroundColor: '#5b7cff' }],
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#8b92a3' }, grid: { color: '#21242e' } },
+            y: { ticks: { color: '#8b92a3', precision: 0 }, grid: { color: '#21242e' }, beginAtZero: true },
+          },
+        },
+      });
+    }
+
+    function renderRevenueChart(rows) {
+      const ctx = document.getElementById('revenueChart');
+      if (revenueChartInstance) revenueChartInstance.destroy();
+      revenueChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: rows.map(r => fmtMonth(r.month)),
+          datasets: [{
+            label: 'Revenue', data: rows.map(r => r.total),
+            borderColor: '#6fe3a3', backgroundColor: 'rgba(111,227,163,.15)', fill: true, tension: 0.3,
+          }],
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#8b92a3' }, grid: { color: '#21242e' } },
+            y: { ticks: { color: '#8b92a3' }, grid: { color: '#21242e' }, beginAtZero: true },
+          },
+        },
+      });
     }
 
     async function loadTenants() {

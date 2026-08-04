@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Platform Reports — Super Admin Portal</title>
+<link rel="stylesheet" href="admin.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">Gym<span>SaaS</span> · Platform Admin</div>
+    <div class="topbar-right">
+      <span id="adminName"></span>
+      <button class="btn-ghost btn-sm" onclick="logoutAdmin()">Log out</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <a href="dashboard.html" class="back-link">&larr; Back to dashboard</a>
+
+    <h2 style="margin-top:0;">Platform Reports</h2>
+
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="label">Total Gyms</div><div class="value" id="kpiTotal">—</div></div>
+      <div class="kpi-card"><div class="label">Total Members</div><div class="value" id="kpiMembers">—</div></div>
+      <div class="kpi-card"><div class="label">Platform Revenue</div><div class="value" id="kpiRevenue">—</div></div>
+      <div class="kpi-card"><div class="label">Avg Revenue / Gym</div><div class="value" id="kpiAvgRevenue">—</div></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <h2>Gym Signups <span class="hint">last 12 months</span></h2>
+        <canvas id="signupChart" height="200"></canvas>
+      </div>
+      <div class="panel">
+        <h2>Platform Revenue <span class="hint">last 12 months</span></h2>
+        <canvas id="revenueChart" height="200"></canvas>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <h2>Top 10 Gyms by Revenue</h2>
+        <table>
+          <thead><tr><th>Gym</th><th>Revenue</th></tr></thead>
+          <tbody id="topRevenueBody"><tr class="loading-row"><td colspan="2">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <h2>Top 10 Gyms by Members</h2>
+        <table>
+          <thead><tr><th>Gym</th><th>Members</th></tr></thead>
+          <tbody id="topMembersBody"><tr class="loading-row"><td colspan="2">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+  <script>
+    if (requireAdminAuth()) {
+      const admin = getAdminInfo();
+      document.getElementById('adminName').textContent = admin?.fullName || admin?.email || '';
+      loadReports();
+    }
+
+    let signupChartInstance = null;
+    let revenueChartInstance = null;
+
+    async function loadReports() {
+      try {
+        const [analytics, tenants] = await Promise.all([
+          adminFetch('/api/admin/analytics?months=12'),
+          adminFetch('/api/admin/tenants'),
+        ]);
+
+        document.getElementById('kpiTotal').textContent   = analytics.totalTenants;
+        document.getElementById('kpiMembers').textContent = analytics.totalMembers;
+        document.getElementById('kpiRevenue').textContent = fmtCurrency(analytics.totalRevenue);
+        const avgRevenue = analytics.totalTenants ? analytics.totalRevenue / analytics.totalTenants : 0;
+        document.getElementById('kpiAvgRevenue').textContent = fmtCurrency(avgRevenue);
+
+        renderSignupChart(analytics.signupGrowth);
+        renderRevenueChart(analytics.revenueGrowth);
+
+        const topByRevenue = [...tenants].sort((a, b) => b.totalRevenue - a.totalRevenue).slice(0, 10);
+        const topByMembers = [...tenants].sort((a, b) => b.memberCount - a.memberCount).slice(0, 10);
+
+        document.getElementById('topRevenueBody').innerHTML = topByRevenue.length
+          ? topByRevenue.map(t => `<tr><td><a href="tenant.html?id=${t.id}">${escapeHtml(t.name)}</a></td><td>${fmtCurrency(t.totalRevenue)}</td></tr>`).join('')
+          : '<tr class="empty-row"><td colspan="2">No gyms yet.</td></tr>';
+
+        document.getElementById('topMembersBody').innerHTML = topByMembers.length
+          ? topByMembers.map(t => `<tr><td><a href="tenant.html?id=${t.id}">${escapeHtml(t.name)}</a></td><td>${t.memberCount}</td></tr>`).join('')
+          : '<tr class="empty-row"><td colspan="2">No gyms yet.</td></tr>';
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderSignupChart(rows) {
+      const ctx = document.getElementById('signupChart');
+      if (signupChartInstance) signupChartInstance.destroy();
+      signupChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: rows.map(r => fmtMonth(r.month)),
+          datasets: [{ label: 'New Gyms', data: rows.map(r => r.count), backgroundColor: '#5b7cff' }],
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#8b92a3' }, grid: { color: '#21242e' } },
+            y: { ticks: { color: '#8b92a3', precision: 0 }, grid: { color: '#21242e' }, beginAtZero: true },
+          },
+        },
+      });
+    }
+
+    function renderRevenueChart(rows) {
+      const ctx = document.getElementById('revenueChart');
+      if (revenueChartInstance) revenueChartInstance.destroy();
+      revenueChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: rows.map(r => fmtMonth(r.month)),
+          datasets: [{
+            label: 'Revenue', data: rows.map(r => r.total),
+            borderColor: '#6fe3a3', backgroundColor: 'rgba(111,227,163,.15)', fill: true, tension: 0.3,
+          }],
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#8b92a3' }, grid: { color: '#21242e' } },
+            y: { ticks: { color: '#8b92a3' }, grid: { color: '#21242e' }, beginAtZero: true },
+          },
+        },
+      });
+    }
+  </script>
+</body>
+</html>

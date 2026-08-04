@@ -66,6 +66,31 @@ async function adminFetch(path, opts = {}) {
   return data;
 }
 
+/**
+ * Downloads a file from an authenticated admin API endpoint (e.g. a CSV
+ * export) by fetching it as a blob and triggering a client-side download,
+ * since a plain <a href> link can't carry the Authorization header.
+ */
+async function adminDownload(path, filename) {
+  const token = getAdminToken();
+  const res = await fetch(path, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Download failed (${res.status})`);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 function fmtCurrency(n) {
   const v = Number(n || 0);
   return '$' + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });

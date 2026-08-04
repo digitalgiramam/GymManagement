@@ -29,12 +29,13 @@
       <div class="kpi-card"><div class="label">Total Revenue</div><div class="value" id="kpiRevenue">—</div></div>
     </div>
 
-    <div class="tabs">
+    <div class="tabs no-print">
       <button class="tab-btn active" data-tab="owner" onclick="showTab('owner')">Owner Account</button>
       <button class="tab-btn" data-tab="settings" onclick="showTab('settings')">Gym Settings</button>
       <button class="tab-btn" data-tab="plans" onclick="showTab('plans')">Plans</button>
       <button class="tab-btn" data-tab="staff" onclick="showTab('staff')">Staff</button>
       <button class="tab-btn" data-tab="payments" onclick="showTab('payments')">Payments</button>
+      <button class="tab-btn" data-tab="report" onclick="showTab('report')">Report</button>
       <button class="tab-btn" data-tab="danger" onclick="showTab('danger')">Danger Zone</button>
     </div>
 
@@ -97,8 +98,13 @@
               <input type="text" id="setContactPerson">
             </div>
             <div>
-              <label for="setCurrency">Currency Symbol</label>
-              <input type="text" id="setCurrency" maxlength="5">
+              <label for="setCurrency">Currency</label>
+              <select id="setCurrency">
+                <option value="₹">₹  Rs  — Indian Rupee</option>
+                <option value="AED">AED — UAE Dirham</option>
+                <option value="$">$  USD — US Dollar</option>
+                <option value="S$">S$ SGD — Singapore Dollar</option>
+              </select>
             </div>
           </div>
           <div class="form-row">
@@ -161,14 +167,46 @@
       </div>
     </div>
 
-    <!-- Payments (read-only) -->
+    <!-- Payments -->
     <div class="tab-panel" id="tab-payments">
       <div class="panel">
-        <h2>Recent Payments <span class="hint">most recent 10</span></h2>
+        <h2>Payments <span class="hint">most recent 200</span></h2>
         <table>
-          <thead><tr><th>Member</th><th>Amount</th><th>Date</th></tr></thead>
-          <tbody id="paymentsBody"><tr class="loading-row"><td colspan="3">Loading…</td></tr></tbody>
+          <thead><tr><th>Member</th><th>Plan</th><th>Amount</th><th>Status</th><th>Method</th><th>Date</th><th></th></tr></thead>
+          <tbody id="paymentsBody"><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
         </table>
+
+        <h2 style="margin-top:20px;">Record Payment</h2>
+        <form id="addPaymentForm" class="form-inline">
+          <div>
+            <label>Member</label>
+            <select id="paymentMember" required></select>
+          </div>
+          <div>
+            <label>Method</label>
+            <select id="paymentMethod" required></select>
+          </div>
+          <div><label>Amount</label><input type="number" id="paymentAmount" min="0" step="0.01" required></div>
+          <div><label>Date</label><input type="date" id="paymentDate"></div>
+          <div><label>Notes</label><input type="text" id="paymentNotes" placeholder="Optional"></div>
+          <button type="submit" class="btn-primary" style="width:auto;">Record Payment</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Report -->
+    <div class="tab-panel" id="tab-report">
+      <div class="panel" id="reportContent">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;" class="no-print">
+          <h2>Gym Report</h2>
+          <div>
+            <button class="btn-primary btn-sm" style="width:auto;" onclick="window.print()">Print / Save as PDF</button>
+            <button class="btn-ghost btn-sm" onclick="exportCsv('members')">Export Members CSV</button>
+            <button class="btn-ghost btn-sm" onclick="exportCsv('payments')">Export Payments CSV</button>
+          </div>
+        </div>
+
+        <div id="reportBody">Loading…</div>
       </div>
     </div>
 
@@ -185,7 +223,7 @@
   </div>
 
   <!-- Impersonation token modal -->
-  <div class="modal-overlay" id="tokenModal" style="display:none;">
+  <div class="modal-overlay no-print" id="tokenModal" style="display:none;">
     <div class="modal-box">
       <h3>Owner Login Token <span class="muted" style="font-weight:400;">(expires in 2 hours)</span></h3>
       <div class="token-box" id="tokenBox"></div>
@@ -196,10 +234,86 @@
     </div>
   </div>
 
+  <!-- Edit Plan modal -->
+  <div class="modal-overlay no-print" id="editPlanModal" style="display:none;">
+    <div class="modal-box">
+      <h3>Edit Plan</h3>
+      <form id="editPlanForm">
+        <input type="hidden" id="editPlanId">
+        <label>Name</label>
+        <input type="text" id="editPlanName" required>
+        <label>Duration (days)</label>
+        <input type="number" id="editPlanDuration" min="1" required>
+        <label>Fee</label>
+        <input type="number" id="editPlanFee" min="0" step="0.01" required>
+        <div class="checkbox-row">
+          <input type="checkbox" id="editPlanActive">
+          <label for="editPlanActive">Active</label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost btn-sm" onclick="closeModal('editPlanModal')">Cancel</button>
+          <button type="submit" class="btn-primary btn-sm" style="width:auto;">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Staff modal -->
+  <div class="modal-overlay no-print" id="editStaffModal" style="display:none;">
+    <div class="modal-box">
+      <h3>Edit Staff</h3>
+      <form id="editStaffForm">
+        <input type="hidden" id="editStaffId">
+        <label>Full Name</label>
+        <input type="text" id="editStaffName" required>
+        <label>Email</label>
+        <input type="email" id="editStaffEmail" required>
+        <label>Phone</label>
+        <input type="text" id="editStaffPhone">
+        <label>Role</label>
+        <select id="editStaffRole">
+          <option value="RECEPTIONIST">Receptionist</option>
+          <option value="TRAINER">Trainer</option>
+        </select>
+        <label>New Password (optional)</label>
+        <input type="password" id="editStaffPassword" minlength="6" placeholder="Leave blank to keep current">
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost btn-sm" onclick="closeModal('editStaffModal')">Cancel</button>
+          <button type="submit" class="btn-primary btn-sm" style="width:auto;">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Payment modal -->
+  <div class="modal-overlay no-print" id="editPaymentModal" style="display:none;">
+    <div class="modal-box">
+      <h3>Edit Payment</h3>
+      <form id="editPaymentForm">
+        <input type="hidden" id="editPaymentId">
+        <label>Amount</label>
+        <input type="number" id="editPaymentAmount" min="0" step="0.01" required>
+        <label>Method</label>
+        <select id="editPaymentMethod" required></select>
+        <label>Notes</label>
+        <input type="text" id="editPaymentNotes">
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost btn-sm" onclick="closeModal('editPaymentModal')">Cancel</button>
+          <button type="submit" class="btn-primary btn-sm" style="width:auto;">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script src="admin.js"></script>
   <script>
     const tenantId = new URLSearchParams(window.location.search).get('id');
     let currentTenant = null;
+    let plansCache = [];
+    let staffCache = [];
+    let paymentsCache = [];
+    let membersLite = [];
+    let paymentMethods = [];
 
     if (requireAdminAuth()) {
       const admin = getAdminInfo();
@@ -210,13 +324,17 @@
         loadTenant();
         loadPlans();
         loadStaff();
+        loadPaymentLookups().then(loadPayments);
       }
     }
 
     function showTab(name) {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${name}`));
+      if (name === 'report') renderReport();
     }
+
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
     async function loadTenant() {
       try {
@@ -228,11 +346,6 @@
         document.getElementById('kpiActiveMembers').textContent = data.memberStats.active;
         document.getElementById('kpiStaffCount').textContent    = data.staff.length;
         document.getElementById('kpiRevenue').textContent       = fmtCurrency(data.revenue.total);
-
-        const paymentsBody = document.getElementById('paymentsBody');
-        paymentsBody.innerHTML = data.recentPayments.length
-          ? data.recentPayments.map(p => `<tr><td>${escapeHtml(p.memberName)}</td><td>${fmtCurrency(p.amount)}</td><td>${fmtDate(p.paymentDate)}</td></tr>`).join('')
-          : '<tr class="empty-row"><td colspan="3">No payments on record.</td></tr>';
 
         // Owner form
         if (data.tenant.ownerName || data.tenant.ownerEmail) {
@@ -262,8 +375,8 @@
         ? '<span class="badge suspended">Suspended</span>'
         : '<span class="badge active">Active</span>';
       const toggleBtn = t.isSuspended
-        ? `<button class="btn-success btn-sm" onclick="toggleStatus(false)">Activate Gym</button>`
-        : `<button class="btn-danger btn-sm" onclick="toggleStatus(true)">Suspend Gym</button>`;
+        ? `<button class="btn-success btn-sm no-print" onclick="toggleStatus(false)">Activate Gym</button>`
+        : `<button class="btn-danger btn-sm no-print" onclick="toggleStatus(true)">Suspend Gym</button>`;
 
       document.getElementById('tenantHeader').innerHTML = `
         <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px;">
@@ -367,9 +480,9 @@
     async function loadPlans() {
       const tbody = document.getElementById('plansBody');
       try {
-        const plans = await adminFetch(`/api/admin/tenants/${tenantId}/plans`);
-        tbody.innerHTML = plans.length
-          ? plans.map(planRowHtml).join('')
+        plansCache = await adminFetch(`/api/admin/tenants/${tenantId}/plans`);
+        tbody.innerHTML = plansCache.length
+          ? plansCache.map(planRowHtml).join('')
           : '<tr class="empty-row"><td colspan="6">No plans yet.</td></tr>';
       } catch (err) {
         tbody.innerHTML = `<tr class="empty-row"><td colspan="6">${escapeHtml(err.message)}</td></tr>`;
@@ -388,7 +501,7 @@
           <td>${p._count?.members ?? 0}</td>
           <td>${statusBadge}</td>
           <td style="white-space:nowrap;">
-            <button class="btn-ghost btn-sm" onclick="togglePlanActive(${p.id}, ${!p.isActive})">${p.isActive ? 'Deactivate' : 'Activate'}</button>
+            <button class="btn-ghost btn-sm" onclick="openEditPlan(${p.id})">Edit</button>
             <button class="btn-danger btn-sm" onclick="deletePlan(${p.id})">Delete</button>
           </td>
         </tr>`;
@@ -412,17 +525,36 @@
       }
     });
 
-    async function togglePlanActive(planId, isActive) {
+    function openEditPlan(planId) {
+      const p = plansCache.find(x => x.id === planId);
+      if (!p) return;
+      document.getElementById('editPlanId').value = p.id;
+      document.getElementById('editPlanName').value = p.name;
+      document.getElementById('editPlanDuration').value = p.durationDays;
+      document.getElementById('editPlanFee').value = p.fee;
+      document.getElementById('editPlanActive').checked = !!p.isActive;
+      document.getElementById('editPlanModal').style.display = 'flex';
+    }
+
+    document.getElementById('editPlanForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const planId = document.getElementById('editPlanId').value;
       try {
         await adminFetch(`/api/admin/tenants/${tenantId}/plans/${planId}`, {
           method: 'PUT',
-          body: JSON.stringify({ isActive }),
+          body: JSON.stringify({
+            name: document.getElementById('editPlanName').value.trim(),
+            durationDays: parseInt(document.getElementById('editPlanDuration').value, 10),
+            fee: parseFloat(document.getElementById('editPlanFee').value),
+            isActive: document.getElementById('editPlanActive').checked,
+          }),
         });
+        closeModal('editPlanModal');
         loadPlans();
       } catch (err) {
         alert(err.message);
       }
-    }
+    });
 
     async function deletePlan(planId) {
       if (!confirm('Delete this plan?')) return;
@@ -438,9 +570,9 @@
     async function loadStaff() {
       const tbody = document.getElementById('staffBody');
       try {
-        const staff = await adminFetch(`/api/admin/tenants/${tenantId}/staff`);
-        tbody.innerHTML = staff.length
-          ? staff.map(staffRowHtml).join('')
+        staffCache = await adminFetch(`/api/admin/tenants/${tenantId}/staff`);
+        tbody.innerHTML = staffCache.length
+          ? staffCache.map(staffRowHtml).join('')
           : '<tr class="empty-row"><td colspan="5">No staff yet.</td></tr>';
       } catch (err) {
         tbody.innerHTML = `<tr class="empty-row"><td colspan="5">${escapeHtml(err.message)}</td></tr>`;
@@ -454,7 +586,10 @@
           <td>${escapeHtml(s.email || '—')}</td>
           <td>${escapeHtml(s.phone || '—')}</td>
           <td>${escapeHtml(s.role)}</td>
-          <td><button class="btn-danger btn-sm" onclick="deleteStaff(${s.id})">Remove</button></td>
+          <td style="white-space:nowrap;">
+            <button class="btn-ghost btn-sm" onclick="openEditStaff(${s.id})">Edit</button>
+            <button class="btn-danger btn-sm" onclick="deleteStaff(${s.id})">Remove</button>
+          </td>
         </tr>`;
     }
 
@@ -478,11 +613,223 @@
       }
     });
 
+    function openEditStaff(staffId) {
+      const s = staffCache.find(x => x.id === staffId);
+      if (!s) return;
+      document.getElementById('editStaffId').value = s.id;
+      document.getElementById('editStaffName').value = s.fullName;
+      document.getElementById('editStaffEmail').value = s.email || '';
+      document.getElementById('editStaffPhone').value = s.phone || '';
+      document.getElementById('editStaffRole').value = s.role;
+      document.getElementById('editStaffPassword').value = '';
+      document.getElementById('editStaffModal').style.display = 'flex';
+    }
+
+    document.getElementById('editStaffForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const staffId = document.getElementById('editStaffId').value;
+      const password = document.getElementById('editStaffPassword').value;
+      try {
+        await adminFetch(`/api/admin/tenants/${tenantId}/staff/${staffId}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            fullName: document.getElementById('editStaffName').value.trim(),
+            email: document.getElementById('editStaffEmail').value.trim(),
+            phone: document.getElementById('editStaffPhone').value.trim(),
+            role: document.getElementById('editStaffRole').value,
+            ...(password ? { password } : {}),
+          }),
+        });
+        closeModal('editStaffModal');
+        loadStaff();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
     async function deleteStaff(staffId) {
       if (!confirm('Remove this staff member?')) return;
       try {
         await adminFetch(`/api/admin/tenants/${tenantId}/staff/${staffId}`, { method: 'DELETE' });
         loadStaff();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // ── Payments ─────────────────────────────────────────────────────────
+    async function loadPaymentLookups() {
+      try {
+        [membersLite, paymentMethods] = await Promise.all([
+          adminFetch(`/api/admin/tenants/${tenantId}/members-lite`),
+          adminFetch(`/api/admin/tenants/${tenantId}/payment-methods`),
+        ]);
+        const memberSelect = document.getElementById('paymentMember');
+        memberSelect.innerHTML = membersLite.length
+          ? membersLite.map(m => `<option value="${m.id}">${escapeHtml(m.fullName)}${m.phone ? ' — ' + escapeHtml(m.phone) : ''}</option>`).join('')
+          : '<option value="">No members yet</option>';
+
+        const methodOptions = paymentMethods.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+        document.getElementById('paymentMethod').innerHTML = methodOptions || '<option value="">No methods</option>';
+        document.getElementById('editPaymentMethod').innerHTML = methodOptions || '<option value="">No methods</option>';
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function loadPayments() {
+      const tbody = document.getElementById('paymentsBody');
+      try {
+        paymentsCache = await adminFetch(`/api/admin/tenants/${tenantId}/payments`);
+        tbody.innerHTML = paymentsCache.length
+          ? paymentsCache.map(paymentRowHtml).join('')
+          : '<tr class="empty-row"><td colspan="7">No payments yet.</td></tr>';
+      } catch (err) {
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="7">${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function paymentStatusBadge(status) {
+      if (status === 'Active') return '<span class="badge active">Active</span>';
+      if (status === 'Partial') return '<span class="badge suspended">Partial</span>';
+      return '<span class="badge suspended">Overdue</span>';
+    }
+
+    function paymentRowHtml(p) {
+      return `
+        <tr>
+          <td>${escapeHtml(p.member?.fullName || '—')}</td>
+          <td>${escapeHtml(p.planName || '—')}</td>
+          <td>${fmtCurrency(p.amount)}${p.overdueAmount > 0 ? ` <span class="muted">(due ${fmtCurrency(p.overdueAmount)})</span>` : ''}</td>
+          <td>${paymentStatusBadge(p.membershipStatus)}</td>
+          <td>${escapeHtml(p.method?.name || '—')}</td>
+          <td>${fmtDate(p.paymentDate)}</td>
+          <td><button class="btn-ghost btn-sm" onclick="openEditPayment(${p.id})">Edit</button></td>
+        </tr>`;
+    }
+
+    document.getElementById('addPaymentForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const dateVal = document.getElementById('paymentDate').value;
+        await adminFetch(`/api/admin/tenants/${tenantId}/payments`, {
+          method: 'POST',
+          body: JSON.stringify({
+            memberId: parseInt(document.getElementById('paymentMember').value, 10),
+            methodId: parseInt(document.getElementById('paymentMethod').value, 10),
+            amount: parseFloat(document.getElementById('paymentAmount').value),
+            notes: document.getElementById('paymentNotes').value.trim() || null,
+            ...(dateVal ? { paymentDate: new Date(dateVal).toISOString() } : {}),
+          }),
+        });
+        document.getElementById('addPaymentForm').reset();
+        loadPayments();
+        loadTenant();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    function openEditPayment(paymentId) {
+      const p = paymentsCache.find(x => x.id === paymentId);
+      if (!p) return;
+      document.getElementById('editPaymentId').value = p.id;
+      document.getElementById('editPaymentAmount').value = p.amount;
+      document.getElementById('editPaymentMethod').value = p.method?.id || '';
+      document.getElementById('editPaymentNotes').value = p.notes || '';
+      document.getElementById('editPaymentModal').style.display = 'flex';
+    }
+
+    document.getElementById('editPaymentForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const paymentId = document.getElementById('editPaymentId').value;
+      try {
+        await adminFetch(`/api/admin/tenants/${tenantId}/payments/${paymentId}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            amount: parseFloat(document.getElementById('editPaymentAmount').value),
+            methodId: parseInt(document.getElementById('editPaymentMethod').value, 10),
+            notes: document.getElementById('editPaymentNotes').value.trim() || null,
+          }),
+        });
+        closeModal('editPaymentModal');
+        loadPayments();
+        loadTenant();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    // ── Report ───────────────────────────────────────────────────────────
+    function renderReport() {
+      if (!currentTenant) return;
+      const t = currentTenant;
+      const totalPlans = plansCache.length;
+      const activePlans = plansCache.filter(p => p.isActive).length;
+      const totalPayments = paymentsCache.reduce((sum, p) => sum + p.amount, 0);
+
+      document.getElementById('reportBody').innerHTML = `
+        <div class="report-meta">Generated ${new Date().toLocaleString()}</div>
+
+        <div class="report-block">
+          <h3>Gym Information</h3>
+          <table>
+            <tr><td class="muted">Name</td><td>${escapeHtml(t.name)}</td></tr>
+            <tr><td class="muted">Owner</td><td>${escapeHtml(t.ownerName || '—')} (${escapeHtml(t.ownerEmail || '—')})</td></tr>
+            <tr><td class="muted">Address</td><td>${escapeHtml(t.address || '—')}</td></tr>
+            <tr><td class="muted">Phone</td><td>${escapeHtml(t.phone || '—')}</td></tr>
+            <tr><td class="muted">Status</td><td>${t.isSuspended ? 'Suspended' : 'Active'}</td></tr>
+            <tr><td class="muted">Joined</td><td>${fmtDate(t.createdAt)}</td></tr>
+          </table>
+        </div>
+
+        <div class="report-block">
+          <h3>Summary</h3>
+          <table>
+            <tr><td class="muted">Total Members</td><td>${document.getElementById('kpiMembers').textContent}</td></tr>
+            <tr><td class="muted">Active Members</td><td>${document.getElementById('kpiActiveMembers').textContent}</td></tr>
+            <tr><td class="muted">Staff Count</td><td>${staffCache.length}</td></tr>
+            <tr><td class="muted">Plans (Active/Total)</td><td>${activePlans} / ${totalPlans}</td></tr>
+            <tr><td class="muted">Total Revenue (all time)</td><td>${document.getElementById('kpiRevenue').textContent}</td></tr>
+            <tr><td class="muted">Revenue (last 200 payments shown)</td><td>${fmtCurrency(totalPayments)}</td></tr>
+          </table>
+        </div>
+
+        <div class="report-block">
+          <h3>Plans</h3>
+          <table>
+            <thead><tr><th>Name</th><th>Duration</th><th>Fee</th><th>Members</th><th>Status</th></tr></thead>
+            <tbody>
+              ${plansCache.map(p => `<tr><td>${escapeHtml(p.name)}</td><td>${p.durationDays} days</td><td>${fmtCurrency(p.fee)}</td><td>${p._count?.members ?? 0}</td><td>${p.isActive ? 'Active' : 'Inactive'}</td></tr>`).join('') || '<tr class="empty-row"><td colspan="5">No plans.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="report-block">
+          <h3>Staff</h3>
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead>
+            <tbody>
+              ${staffCache.map(s => `<tr><td>${escapeHtml(s.fullName)}</td><td>${escapeHtml(s.email || '—')}</td><td>${escapeHtml(s.role)}</td></tr>`).join('') || '<tr class="empty-row"><td colspan="3">No staff.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="report-block">
+          <h3>Recent Payments</h3>
+          <table>
+            <thead><tr><th>Member</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>
+              ${paymentsCache.slice(0, 20).map(p => `<tr><td>${escapeHtml(p.member?.fullName || '—')}</td><td>${fmtCurrency(p.amount)}</td><td>${p.membershipStatus}</td><td>${fmtDate(p.paymentDate)}</td></tr>`).join('') || '<tr class="empty-row"><td colspan="4">No payments.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    async function exportCsv(type) {
+      try {
+        await adminDownload(`/api/admin/tenants/${tenantId}/export/${type}`, `${currentTenant?.name || 'gym'}-${type}.csv`);
       } catch (err) {
         alert(err.message);
       }
