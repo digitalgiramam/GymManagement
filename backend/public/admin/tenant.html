@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gym Detail — Super Admin Portal</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">Gym<span>SaaS</span> · Platform Admin</div>
+    <div class="topbar-right">
+      <span id="adminName"></span>
+      <button class="btn-ghost btn-sm" onclick="logoutAdmin()">Log out</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <a href="dashboard.html" class="back-link">&larr; Back to all gyms</a>
+
+    <div class="panel" id="tenantHeader">
+      <h2>Loading…</h2>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="label">Total Members</div><div class="value" id="kpiMembers">—</div></div>
+      <div class="kpi-card"><div class="label">Active Members</div><div class="value active" id="kpiActiveMembers">—</div></div>
+      <div class="kpi-card"><div class="label">Staff Count</div><div class="value" id="kpiStaffCount">—</div></div>
+      <div class="kpi-card"><div class="label">Total Revenue</div><div class="value" id="kpiRevenue">—</div></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <h2>Staff <span class="hint">most recent 20</span></h2>
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead>
+          <tbody id="staffBody"><tr class="loading-row"><td colspan="3">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <h2>Recent Payments <span class="hint">most recent 10</span></h2>
+        <table>
+          <thead><tr><th>Member</th><th>Amount</th><th>Date</th></tr></thead>
+          <tbody id="paymentsBody"><tr class="loading-row"><td colspan="3">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+  <script>
+    const tenantId = new URLSearchParams(window.location.search).get('id');
+
+    if (requireAdminAuth()) {
+      const admin = getAdminInfo();
+      document.getElementById('adminName').textContent = admin?.fullName || admin?.email || '';
+      if (!tenantId) {
+        document.getElementById('tenantHeader').innerHTML = '<h2>No gym ID provided.</h2>';
+      } else {
+        loadTenant();
+      }
+    }
+
+    async function loadTenant() {
+      try {
+        const data = await adminFetch(`/api/admin/tenants/${tenantId}`);
+        renderHeader(data.tenant);
+        document.getElementById('kpiMembers').textContent       = data.memberStats.total;
+        document.getElementById('kpiActiveMembers').textContent = data.memberStats.active;
+        document.getElementById('kpiStaffCount').textContent    = data.staff.length;
+        document.getElementById('kpiRevenue').textContent       = fmtCurrency(data.revenue.total);
+
+        const staffBody = document.getElementById('staffBody');
+        staffBody.innerHTML = data.staff.length
+          ? data.staff.map(s => `<tr><td>${escapeHtml(s.fullName)}</td><td>${escapeHtml(s.email || '—')}</td><td>${escapeHtml(s.role)}</td></tr>`).join('')
+          : '<tr class="empty-row"><td colspan="3">No staff on record.</td></tr>';
+
+        const paymentsBody = document.getElementById('paymentsBody');
+        paymentsBody.innerHTML = data.recentPayments.length
+          ? data.recentPayments.map(p => `<tr><td>${escapeHtml(p.memberName)}</td><td>${fmtCurrency(p.amount)}</td><td>${fmtDate(p.paymentDate)}</td></tr>`).join('')
+          : '<tr class="empty-row"><td colspan="3">No payments on record.</td></tr>';
+      } catch (err) {
+        document.getElementById('tenantHeader').innerHTML = `<h2>${escapeHtml(err.message)}</h2>`;
+      }
+    }
+
+    function renderHeader(t) {
+      const statusBadge = t.isSuspended
+        ? '<span class="badge suspended">Suspended</span>'
+        : '<span class="badge active">Active</span>';
+      const toggleBtn = t.isSuspended
+        ? `<button class="btn-success btn-sm" onclick="toggleStatus(false)">Activate Gym</button>`
+        : `<button class="btn-danger btn-sm" onclick="toggleStatus(true)">Suspend Gym</button>`;
+
+      document.getElementById('tenantHeader').innerHTML = `
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+          <div>
+            <h2 style="margin-bottom:6px;">${escapeHtml(t.name)} ${statusBadge}</h2>
+            <div class="muted">Owner: ${escapeHtml(t.ownerName || '—')} (${escapeHtml(t.ownerEmail || '—')})</div>
+            <div class="muted">Address: ${escapeHtml(t.address || '—')} &nbsp;·&nbsp; Phone: ${escapeHtml(t.phone || '—')}</div>
+            <div class="muted">Joined: ${fmtDate(t.createdAt)}</div>
+          </div>
+          <div>${toggleBtn}</div>
+        </div>`;
+    }
+
+    async function toggleStatus(suspend) {
+      const action = suspend ? 'suspend' : 'reactivate';
+      if (!confirm(`Are you sure you want to ${action} this gym?`)) return;
+      try {
+        await adminFetch(`/api/admin/tenants/${tenantId}/status`, {
+          method: 'PUT',
+          body: JSON.stringify({ isSuspended: suspend }),
+        });
+        loadTenant();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+  </script>
+</body>
+</html>

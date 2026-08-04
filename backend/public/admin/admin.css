@@ -1,0 +1,168 @@
+/* Super Admin Portal — shared styles */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #0f1115;
+  color: #e7e9ee;
+}
+
+/* ── Login page ─────────────────────────────────────────────────────────── */
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  background: #171a21;
+  border: 1px solid #262a35;
+  border-radius: 12px;
+  padding: 32px;
+}
+.login-card h1 {
+  font-size: 20px;
+  margin: 0 0 4px;
+}
+.login-card p.sub {
+  color: #8b92a3;
+  font-size: 13px;
+  margin: 0 0 24px;
+}
+label {
+  display: block;
+  font-size: 13px;
+  color: #b3b9c6;
+  margin-bottom: 6px;
+}
+input[type=email], input[type=password], input[type=text] {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #2c3140;
+  background: #10121a;
+  color: #e7e9ee;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+input:focus { outline: none; border-color: #5b7cff; }
+button {
+  cursor: pointer;
+  font-size: 14px;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-weight: 600;
+}
+.btn-primary {
+  width: 100%;
+  background: #5b7cff;
+  color: #fff;
+}
+.btn-primary:hover { background: #4a68e0; }
+.btn-primary:disabled { opacity: .6; cursor: default; }
+.error-box {
+  background: #2a1418;
+  border: 1px solid #5c2530;
+  color: #ff9aa8;
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  display: none;
+}
+
+/* ── App shell ──────────────────────────────────────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  border-bottom: 1px solid #21242e;
+  background: #12141b;
+}
+.topbar .brand { font-weight: 700; font-size: 15px; }
+.topbar .brand span { color: #5b7cff; }
+.topbar-right { display: flex; align-items: center; gap: 12px; font-size: 13px; color: #9aa1b3; }
+.btn-ghost {
+  background: transparent;
+  border: 1px solid #2c3140;
+  color: #cbd0dc;
+}
+.btn-ghost:hover { background: #1c2029; }
+.btn-danger { background: #d64550; color: #fff; }
+.btn-danger:hover { background: #b93842; }
+.btn-success { background: #2fa66a; color: #fff; }
+.btn-success:hover { background: #24895a; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+
+.container { max-width: 1180px; margin: 0 auto; padding: 24px; }
+a { color: #5b7cff; text-decoration: none; }
+a:hover { text-decoration: underline; }
+a.back-link { display: inline-block; margin-bottom: 16px; font-size: 13px; }
+
+/* ── Cards / KPIs ───────────────────────────────────────────────────────── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.kpi-card {
+  background: #171a21;
+  border: 1px solid #262a35;
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.kpi-card .label { font-size: 12px; color: #8b92a3; margin-bottom: 6px; }
+.kpi-card .value { font-size: 24px; font-weight: 700; }
+.kpi-card .value.suspended { color: #ff9aa8; }
+.kpi-card .value.active { color: #6fe3a3; }
+
+.panel {
+  background: #171a21;
+  border: 1px solid #262a35;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.panel h2 {
+  font-size: 15px;
+  margin: 0 0 14px;
+}
+.panel h2 .hint { color: #8b92a3; font-size: 12px; font-weight: 400; }
+
+/* ── Table ──────────────────────────────────────────────────────────────── */
+.table-toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.table-toolbar input[type=text] { margin-bottom: 0; max-width: 280px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #21242e; }
+th { color: #8b92a3; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+tr:hover td { background: #1a1d26; }
+.badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.badge.active { background: rgba(111,227,163,.12); color: #6fe3a3; }
+.badge.suspended { background: rgba(255,154,168,.12); color: #ff9aa8; }
+.muted { color: #8b92a3; }
+.empty-row td { text-align: center; color: #8b92a3; padding: 24px; }
+.loading-row td { text-align: center; color: #8b92a3; padding: 24px; }
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 800px) {
+  .grid-2 { grid-template-columns: 1fr; }
+}

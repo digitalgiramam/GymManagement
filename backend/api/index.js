@@ -7,6 +7,7 @@
 
 require('dotenv').config();
 
+const path    = require('path');
 const express = require('express');
 const cors    = require('cors');
 
@@ -26,9 +27,11 @@ const memberPortalRoutes  = require('../src/routes/member-portal');
 const staffPortalRoutes   = require('../src/routes/staff-portal');
 const progressRoutes      = require('../src/routes/progress');
 const goalsRoutes         = require('../src/routes/goals');
+const adminAuthRoutes     = require('../src/routes/admin-auth');
+const adminRoutes         = require('../src/routes/admin');
 
 // ── Middleware ─────────────────────────────────────────────────────────────
-const { authenticateJWT, requireTenant } = require('../src/middleware/auth');
+const { authenticateJWT, requireTenant, requireSuperAdmin } = require('../src/middleware/auth');
 
 // ──────────────────────────────────────────────────────────────────────────
 const app = express();
@@ -73,6 +76,13 @@ app.use('/api/member-portal', authenticateJWT, memberPortalRoutes);
 
 // ── Staff portal (TRAINER / RECEPTIONIST — tenantId + staffId in JWT) ─────
 app.use('/api/staff-portal', authenticateJWT, staffPortalRoutes);
+
+// ── Super Admin — platform-level, cross-tenant management ──────────────────
+app.use('/api/admin/auth', adminAuthRoutes);
+app.use('/api/admin',      authenticateJWT, requireSuperAdmin, adminRoutes);
+
+// ── Super Admin web portal — static pages (login/dashboard/tenant detail) ──
+app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
 
 // ── 404 catch-all ─────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ error: 'Route not found.' }));

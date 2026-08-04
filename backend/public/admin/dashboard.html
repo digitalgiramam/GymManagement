@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Super Admin Portal</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">Gym<span>SaaS</span> · Platform Admin</div>
+    <div class="topbar-right">
+      <span id="adminName"></span>
+      <button class="btn-ghost btn-sm" onclick="logoutAdmin()">Log out</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="kpi-grid" id="kpiGrid">
+      <div class="kpi-card"><div class="label">Total Gyms</div><div class="value" id="kpiTotal">—</div></div>
+      <div class="kpi-card"><div class="label">Active Gyms</div><div class="value active" id="kpiActive">—</div></div>
+      <div class="kpi-card"><div class="label">Suspended Gyms</div><div class="value suspended" id="kpiSuspended">—</div></div>
+      <div class="kpi-card"><div class="label">Total Members</div><div class="value" id="kpiMembers">—</div></div>
+      <div class="kpi-card"><div class="label">Total Staff</div><div class="value" id="kpiStaff">—</div></div>
+      <div class="kpi-card"><div class="label">Platform Revenue</div><div class="value" id="kpiRevenue">—</div></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <h2>New Gym Signups <span class="hint">last 6 months</span></h2>
+        <table id="signupTable">
+          <thead><tr><th>Month</th><th>Signups</th></tr></thead>
+          <tbody><tr class="loading-row"><td colspan="2">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <h2>Platform Revenue <span class="hint">last 6 months, across all gyms</span></h2>
+        <table id="revenueTable">
+          <thead><tr><th>Month</th><th>Revenue</th></tr></thead>
+          <tbody><tr class="loading-row"><td colspan="2">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Gyms</h2>
+      <div class="table-toolbar">
+        <input type="text" id="searchInput" placeholder="Search by gym name or owner email…">
+        <button class="btn-ghost btn-sm" onclick="loadTenants()">Search</button>
+        <button class="btn-ghost btn-sm" onclick="clearSearch()">Clear</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Gym</th>
+            <th>Owner</th>
+            <th>Members</th>
+            <th>Staff</th>
+            <th>Revenue</th>
+            <th>Status</th>
+            <th>Joined</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tenantsBody">
+          <tr class="loading-row"><td colspan="8">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+  <script>
+    if (requireAdminAuth()) {
+      const admin = getAdminInfo();
+      document.getElementById('adminName').textContent = admin?.fullName || admin?.email || '';
+      loadAnalytics();
+      loadTenants();
+    }
+
+    document.getElementById('searchInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') loadTenants();
+    });
+
+    function clearSearch() {
+      document.getElementById('searchInput').value = '';
+      loadTenants();
+    }
+
+    async function loadAnalytics() {
+      try {
+        const data = await adminFetch('/api/admin/analytics');
+        document.getElementById('kpiTotal').textContent     = data.totalTenants;
+        document.getElementById('kpiActive').textContent    = data.activeTenants;
+        document.getElementById('kpiSuspended').textContent = data.suspendedTenants;
+        document.getElementById('kpiMembers').textContent   = data.totalMembers;
+        document.getElementById('kpiStaff').textContent     = data.totalStaff;
+        document.getElementById('kpiRevenue').textContent   = fmtCurrency(data.totalRevenue);
+
+        const signupBody = document.querySelector('#signupTable tbody');
+        signupBody.innerHTML = data.signupGrowth.length
+          ? data.signupGrowth.map(r => `<tr><td>${fmtMonth(r.month)}</td><td>${r.count}</td></tr>`).join('')
+          : '<tr class="empty-row"><td colspan="2">No signups in this period.</td></tr>';
+
+        const revenueBody = document.querySelector('#revenueTable tbody');
+        revenueBody.innerHTML = data.revenueGrowth.length
+          ? data.revenueGrowth.map(r => `<tr><td>${fmtMonth(r.month)}</td><td>${fmtCurrency(r.total)}</td></tr>`).join('')
+          : '<tr class="empty-row"><td colspan="2">No revenue in this period.</td></tr>';
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function loadTenants() {
+      const tbody = document.getElementById('tenantsBody');
+      tbody.innerHTML = '<tr class="loading-row"><td colspan="8">Loading…</td></tr>';
+
+      const search = document.getElementById('searchInput').value.trim();
+      const qs = search ? `?search=${encodeURIComponent(search)}` : '';
+
+      try {
+        const tenants = await adminFetch(`/api/admin/tenants${qs}`);
+        if (!tenants.length) {
+          tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No gyms found.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = tenants.map(rowHtml).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="8">${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function rowHtml(t) {
+      const statusBadge = t.isSuspended
+        ? '<span class="badge suspended">Suspended</span>'
+        : '<span class="badge active">Active</span>';
+      const toggleBtn = t.isSuspended
+        ? `<button class="btn-success btn-sm" onclick="toggleStatus(${t.id}, false)">Activate</button>`
+        : `<button class="btn-danger btn-sm" onclick="toggleStatus(${t.id}, true)">Suspend</button>`;
+
+      return `
+        <tr>
+          <td>${escapeHtml(t.name)}</td>
+          <td>${escapeHtml(t.ownerName || '—')}<br><span class="muted">${escapeHtml(t.ownerEmail || '')}</span></td>
+          <td>${t.memberCount}</td>
+          <td>${t.staffCount}</td>
+          <td>${fmtCurrency(t.totalRevenue)}</td>
+          <td>${statusBadge}</td>
+          <td>${fmtDate(t.createdAt)}</td>
+          <td style="white-space:nowrap;">
+            <a href="tenant.html?id=${t.id}">View</a>
+            &nbsp;&nbsp;${toggleBtn}
+          </td>
+        </tr>`;
+    }
+
+    async function toggleStatus(id, suspend) {
+      const action = suspend ? 'suspend' : 'reactivate';
+      if (!confirm(`Are you sure you want to ${action} this gym?`)) return;
+      try {
+        await adminFetch(`/api/admin/tenants/${id}/status`, {
+          method: 'PUT',
+          body: JSON.stringify({ isSuspended: suspend }),
+        });
+        loadTenants();
+        loadAnalytics();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+  </script>
+</body>
+</html>

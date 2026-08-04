@@ -47,6 +47,20 @@ async function getCurrencySymbol(tenantId) {
   }
 }
 
+/** Returns true if the tenant exists and has been suspended by a Super Admin. */
+async function isTenantSuspended(tenantId) {
+  if (!tenantId) return false;
+  try {
+    const { rows } = await query(`SELECT "isSuspended" FROM tenants WHERE id = $1`, [tenantId]);
+    return rows[0]?.isSuspended === true;
+  } catch (err) {
+    console.error('[auth/isTenantSuspended]', err);
+    return false; // fail open on lookup error — don't lock everyone out over a transient DB blip
+  }
+}
+
+const SUSPENDED_MESSAGE = 'This gym account has been suspended. Please contact support.';
+
 // ── POST /api/auth/register ────────────────────────────────────────────────
 router.post('/register', async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
@@ -88,6 +102,10 @@ router.post('/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) return res.status(401).json({ error: 'Invalid email or password.' });
 
+    if (await isTenantSuspended(user.tenantId)) {
+      return res.status(403).json({ error: SUSPENDED_MESSAGE, code: 'TENANT_SUSPENDED' });
+    }
+
     const token = makeToken({ userId: user.id, tenantId: user.tenantId, email: user.email, role: 'OWNER' });
     const currencySymbol = await getCurrencySymbol(user.tenantId);
     return res.json({
@@ -116,6 +134,10 @@ router.post('/staff-login', async (req, res) => {
 
     const valid = await bcrypt.compare(password, staff.passwordHash);
     if (!valid) return res.status(401).json({ error: 'Invalid email or password.' });
+
+    if (await isTenantSuspended(staff.tenantId)) {
+      return res.status(403).json({ error: SUSPENDED_MESSAGE, code: 'TENANT_SUSPENDED' });
+    }
 
     const token = makeToken({ userId: staff.id, tenantId: staff.tenantId, email: staff.email, role: 'STAFF', staffId: staff.id });
     const currencySymbol = await getCurrencySymbol(staff.tenantId);
@@ -149,6 +171,10 @@ router.post('/member-login', async (req, res) => {
 
     const valid = await bcrypt.compare(password, member.passwordHash);
     if (!valid) return res.status(401).json({ error: 'Invalid email or password.' });
+
+    if (await isTenantSuspended(member.tenantId)) {
+      return res.status(403).json({ error: SUSPENDED_MESSAGE, code: 'TENANT_SUSPENDED' });
+    }
 
     const token = makeToken({
       userId: member.id, tenantId: member.tenantId,

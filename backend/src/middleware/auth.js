@@ -36,4 +36,12 @@ function requireTenant(req, res, next) {
   next();
 }
 
-module.exports = { authenticateJWT, requireTenant };
+/** Platform-level admin only — used for the Super Admin portal API routes. */
+function requireSuperAdmin(req, res, next) {
+  if (req.user?.role !== 'SUPER_ADMIN') {
+    return res.status(403).json({ error: 'Super Admin access only.' });
+  }
+  next();
+}
+
+module.exports = { authenticateJWT, requireTenant, requireSuperAdmin };
