@@ -607,6 +607,161 @@ router.delete('/tenants/:id/staff/:staffId', async (req, res) => {
   }
 });
 
+// ── Members — manage on the owner's behalf ──────────────────────────────────
+const adminMemberSchema = z.object({
+  fullName:  z.string().min(1, 'Full name is required').max(150),
+  phone:     z.string().min(7, 'Phone is required').max(20),
+  email:     z.string().email('Invalid email').optional().or(z.literal('')).transform(v => v || null),
+  location:  z.string().max(200).optional().or(z.literal('')).transform(v => v || null),
+  planId:    z.number().int().positive('Plan ID is required'),
+  status:    z.enum(['Active', 'Inactive']).default('Active'),
+  joinDate:  z.string().datetime().optional(),
+  trainerId: z.number().int().positive().optional().nullable(),
+  password:  z.string().min(6, 'Password must be at least 6 characters').optional().or(z.literal('')).transform(v => v || null),
+  heightCm:  z.number().positive().max(300).optional().nullable(),
+  dateOfBirth:           z.string().datetime().optional().nullable(),
+  gender:                z.string().max(20).optional().or(z.literal('')).transform(v => v || null),
+  bloodGroup:            z.string().max(10).optional().or(z.literal('')).transform(v => v || null),
+  emergencyContactName:  z.string().max(150).optional().or(z.literal('')).transform(v => v || null),
+  emergencyContactPhone: z.string().max(20).optional().or(z.literal('')).transform(v => v || null),
+  referralSource:        z.string().max(50).optional().or(z.literal('')).transform(v => v || null),
+  healthNotes:           z.string().max(1000).optional().or(z.literal('')).transform(v => v || null),
+});
+const adminMemberUpdateSchema = adminMemberSchema.partial();
+
+router.get('/tenants/:id/members', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid tenant ID.' });
+  try {
+    const { rows } = await query(
+      `SELECT m.*,
+              p.id AS "planId_", p.name AS "planName_", p."durationDays" AS "planDays_", p.fee AS "planFee_",
+              s."fullName" AS "trainerName_"
+       FROM members m
+       JOIN plans p ON p.id = m."planId"
+       LEFT JOIN staff s ON s.id = m."trainerId"
+       WHERE m."tenantId" = $1
+       ORDER BY m."createdAt" DESC`,
+      [id],
+    );
+    const members = rows.map(row => {
+      const plan = { id: row.planId_, name: row.planName_, durationDays: row.planDays_, fee: parseFloat(row.planFee_) };
+      const { planId_: _1, planName_: _2, planDays_: _3, planFee_: _4, trainerName_: trainerName, ...member } = row;
+      return { ...member, plan, trainerName: trainerName ?? null };
+    });
+    return res.json(members);
+  } catch (err) {
+    console.error('[admin/tenants/:id/members/GET]', err);
+    return res.status(500).json({ error: 'Failed to fetch members.' });
+  }
+});
+
+router.post('/tenants/:id/members', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid tenant ID.' });
+
+  const result = adminMemberSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ error: result.error.errors[0].message });
+
+  const {
+    fullName, phone, email, location, planId, status, joinDate, trainerId, password, heightCm,
+    dateOfBirth, gender, bloodGroup, emergencyContactName, emergencyContactPhone, referralSource, healthNotes,
+  } = result.data;
+
+  try {
+    const passwordHash = password ? await bcrypt.hash(password, 12) : null;
+    const { rows } = await query(
+      `INSERT INTO members
+         ("tenantId","fullName",phone,email,location,"planId",status,"joinDate","trainerId","passwordHash","heightCm",
+          "dateOfBirth",gender,"bloodGroup","emergencyContactName","emergencyContactPhone","referralSource","healthNotes")
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
+      [id, fullName, phone, email ?? null, location ?? null, planId, status,
+       joinDate ? new Date(joinDate) : new Date(), trainerId ?? null, passwordHash, heightCm ?? null,
+       dateOfBirth ? new Date(dateOfBirth) : null, gender ?? null, bloodGroup ?? null,
+       emergencyContactName ?? null, emergencyContactPhone ?? null, referralSource ?? null, healthNotes ?? null],
+    );
+    const { rows: planRows } = await query(`SELECT * FROM plans WHERE id = $1`, [planId]);
+    return res.status(201).json({ ...rows[0], plan: planRows[0] ?? null });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'A member with that phone number already exists.' });
+    if (err.code === '23503') return res.status(400).json({ error: 'Invalid plan ID.' });
+    console.error('[admin/tenants/:id/members/POST]', err);
+    return res.status(500).json({ error: 'Failed to create member.' });
+  }
+});
+
+router.put('/tenants/:id/members/:memberId', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const memberId = parseInt(req.params.memberId, 10);
+  if (isNaN(id) || isNaN(memberId)) return res.status(400).json({ error: 'Invalid ID.' });
+
+  const result = adminMemberUpdateSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ error: result.error.errors[0].message });
+
+  const data = result.data;
+  const sets = []; const vals = []; let p = 1;
+
+  if (data.fullName  !== undefined) { sets.push(`"fullName" = $${p++}`);   vals.push(data.fullName); }
+  if (data.phone     !== undefined) { sets.push(`phone = $${p++}`);        vals.push(data.phone); }
+  if (data.email     !== undefined) { sets.push(`email = $${p++}`);        vals.push(data.email); }
+  if (data.location  !== undefined) { sets.push(`location = $${p++}`);     vals.push(data.location); }
+  if (data.planId    !== undefined) { sets.push(`"planId" = $${p++}`);     vals.push(data.planId); }
+  if (data.status    !== undefined) { sets.push(`status = $${p++}`);       vals.push(data.status); }
+  if (data.joinDate  !== undefined) { sets.push(`"joinDate" = $${p++}`);   vals.push(new Date(data.joinDate)); }
+  if (data.trainerId !== undefined) { sets.push(`"trainerId" = $${p++}`);  vals.push(data.trainerId ?? null); }
+  if (data.heightCm  !== undefined) { sets.push(`"heightCm" = $${p++}`);   vals.push(data.heightCm ?? null); }
+  if (data.dateOfBirth           !== undefined) { sets.push(`"dateOfBirth" = $${p++}`);           vals.push(data.dateOfBirth ? new Date(data.dateOfBirth) : null); }
+  if (data.gender                !== undefined) { sets.push(`gender = $${p++}`);                  vals.push(data.gender); }
+  if (data.bloodGroup            !== undefined) { sets.push(`"bloodGroup" = $${p++}`);            vals.push(data.bloodGroup); }
+  if (data.emergencyContactName  !== undefined) { sets.push(`"emergencyContactName" = $${p++}`);  vals.push(data.emergencyContactName); }
+  if (data.emergencyContactPhone !== undefined) { sets.push(`"emergencyContactPhone" = $${p++}`); vals.push(data.emergencyContactPhone); }
+  if (data.referralSource        !== undefined) { sets.push(`"referralSource" = $${p++}`);        vals.push(data.referralSource); }
+  if (data.healthNotes           !== undefined) { sets.push(`"healthNotes" = $${p++}`);           vals.push(data.healthNotes); }
+  if (data.password) {
+    const hash = await bcrypt.hash(data.password, 12);
+    sets.push(`"passwordHash" = $${p++}`); vals.push(hash);
+  }
+
+  if (sets.length === 0) return res.status(400).json({ error: 'No fields to update.' });
+  vals.push(memberId, id);
+
+  try {
+    const { rowCount } = await query(
+      `UPDATE members SET ${sets.join(', ')} WHERE id = $${p} AND "tenantId" = $${p + 1}`, vals,
+    );
+    if (rowCount === 0) return res.status(404).json({ error: 'Member not found.' });
+
+    const { rows } = await query(
+      `SELECT m.*, p.id AS "planId_", p.name AS "planName_", p."durationDays" AS "planDays_", p.fee AS "planFee_"
+       FROM members m JOIN plans p ON p.id = m."planId"
+       WHERE m.id = $1 AND m."tenantId" = $2`,
+      [memberId, id],
+    );
+    const row  = rows[0];
+    const plan = { id: row.planId_, name: row.planName_, durationDays: row.planDays_, fee: parseFloat(row.planFee_) };
+    const { planId_: _1, planName_: _2, planDays_: _3, planFee_: _4, ...member } = row;
+    return res.json({ ...member, plan });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Phone number already in use.' });
+    console.error('[admin/tenants/:id/members/:memberId/PUT]', err);
+    return res.status(500).json({ error: 'Failed to update member.' });
+  }
+});
+
+router.delete('/tenants/:id/members/:memberId', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const memberId = parseInt(req.params.memberId, 10);
+  if (isNaN(id) || isNaN(memberId)) return res.status(400).json({ error: 'Invalid ID.' });
+  try {
+    const { rowCount } = await query(`DELETE FROM members WHERE id = $1 AND "tenantId" = $2`, [memberId, id]);
+    if (rowCount === 0) return res.status(404).json({ error: 'Member not found.' });
+    return res.status(204).send();
+  } catch (err) {
+    console.error('[admin/tenants/:id/members/:memberId/DELETE]', err);
+    return res.status(500).json({ error: 'Failed to delete member.' });
+  }
+});
+
 // ── Lightweight lookups for the Payments form ───────────────────────────────
 router.get('/tenants/:id/members-lite', async (req, res) => {
   const id = parseInt(req.params.id, 10);

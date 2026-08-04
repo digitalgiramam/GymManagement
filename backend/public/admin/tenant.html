@@ -34,6 +34,7 @@
       <button class="tab-btn" data-tab="settings" onclick="showTab('settings')">Gym Settings</button>
       <button class="tab-btn" data-tab="plans" onclick="showTab('plans')">Plans</button>
       <button class="tab-btn" data-tab="staff" onclick="showTab('staff')">Staff</button>
+      <button class="tab-btn" data-tab="members" onclick="showTab('members')">Members</button>
       <button class="tab-btn" data-tab="payments" onclick="showTab('payments')">Payments</button>
       <button class="tab-btn" data-tab="report" onclick="showTab('report')">Report</button>
       <button class="tab-btn" data-tab="danger" onclick="showTab('danger')">Danger Zone</button>
@@ -167,6 +168,103 @@
       </div>
     </div>
 
+    <!-- Members -->
+    <div class="tab-panel" id="tab-members">
+      <div class="panel">
+        <h2>Members</h2>
+        <div class="table-toolbar">
+          <input type="text" id="memberSearchInput" placeholder="Search by name or phone…">
+          <button class="btn-ghost btn-sm" onclick="renderMembers()">Search</button>
+          <button class="btn-ghost btn-sm" onclick="document.getElementById('memberSearchInput').value=''; renderMembers();">Clear</button>
+        </div>
+        <table>
+          <thead><tr><th>Name</th><th>Phone</th><th>Plan</th><th>Status</th><th>Trainer</th><th>Expiry</th><th></th></tr></thead>
+          <tbody id="membersBody"><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
+        </table>
+
+        <h2 style="margin-top:20px;">Add Member</h2>
+        <form id="addMemberForm">
+          <div class="form-row">
+            <div><label>Full Name</label><input type="text" id="memberFullName" required></div>
+            <div><label>Phone</label><input type="text" id="memberPhone" required></div>
+          </div>
+          <div class="form-row">
+            <div><label>Email (optional)</label><input type="text" id="memberEmail"></div>
+            <div><label>Location (optional)</label><input type="text" id="memberLocation"></div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label>Plan</label>
+              <select id="memberPlan" required></select>
+            </div>
+            <div>
+              <label>Status</label>
+              <select id="memberStatus">
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label>Trainer (optional)</label>
+              <select id="memberTrainer"><option value="">None</option></select>
+            </div>
+            <div><label>Login Password (optional)</label><input type="password" id="memberPassword" minlength="6" placeholder="Leave blank = no login"></div>
+          </div>
+
+          <button type="button" class="btn-ghost btn-sm" style="width:auto; margin-bottom:16px;" onclick="toggleMemberHealthSection('addMemberHealth')">Personal &amp; Health Details (optional) ▾</button>
+          <div id="addMemberHealth" style="display:none;">
+            <div class="form-row">
+              <div><label>Date of Birth</label><input type="date" id="memberDob"></div>
+              <div>
+                <label>Gender</label>
+                <select id="memberGender">
+                  <option value="">—</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div>
+                <label>Blood Group</label>
+                <select id="memberBloodGroup">
+                  <option value="Unknown">Unknown</option>
+                  <option value="A+">A+</option><option value="A-">A-</option>
+                  <option value="B+">B+</option><option value="B-">B-</option>
+                  <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                  <option value="O+">O+</option><option value="O-">O-</option>
+                </select>
+              </div>
+              <div>
+                <label>Referral Source</label>
+                <select id="memberReferral">
+                  <option value="">—</option>
+                  <option value="Walk-in">Walk-in</option>
+                  <option value="Friend/Family Referral">Friend/Family Referral</option>
+                  <option value="Social Media">Social Media</option>
+                  <option value="Online Search">Online Search</option>
+                  <option value="Advertisement">Advertisement</option>
+                  <option value="Existing Member">Existing Member</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div><label>Emergency Contact Name</label><input type="text" id="memberEmergencyName"></div>
+              <div><label>Emergency Contact Phone</label><input type="text" id="memberEmergencyPhone"></div>
+            </div>
+            <label>Health Notes <span class="hint">medical conditions, injuries, allergies, medication</span></label>
+            <textarea id="memberHealthNotes" rows="2"></textarea>
+          </div>
+
+          <button type="submit" class="btn-primary" style="width:auto;">Add Member</button>
+        </form>
+      </div>
+    </div>
+
     <!-- Payments -->
     <div class="tab-panel" id="tab-payments">
       <div class="panel">
@@ -285,6 +383,92 @@
     </div>
   </div>
 
+  <!-- Edit Member modal -->
+  <div class="modal-overlay no-print" id="editMemberModal" style="display:none;">
+    <div class="modal-box" style="max-width:520px;">
+      <h3>Edit Member</h3>
+      <form id="editMemberForm">
+        <input type="hidden" id="editMemberId">
+        <div class="form-row">
+          <div><label>Full Name</label><input type="text" id="editMemberFullName" required></div>
+          <div><label>Phone</label><input type="text" id="editMemberPhone" required></div>
+        </div>
+        <div class="form-row">
+          <div><label>Email</label><input type="text" id="editMemberEmail"></div>
+          <div><label>Location</label><input type="text" id="editMemberLocation"></div>
+        </div>
+        <div class="form-row">
+          <div>
+            <label>Plan</label>
+            <select id="editMemberPlan" required></select>
+          </div>
+          <div>
+            <label>Status</label>
+            <select id="editMemberStatus">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div>
+            <label>Trainer</label>
+            <select id="editMemberTrainer"><option value="">None</option></select>
+          </div>
+          <div><label>New Password (optional)</label><input type="password" id="editMemberPassword" minlength="6" placeholder="Leave blank to keep current"></div>
+        </div>
+        <div class="form-row">
+          <div><label>Date of Birth</label><input type="date" id="editMemberDob"></div>
+          <div>
+            <label>Gender</label>
+            <select id="editMemberGender">
+              <option value="">—</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div>
+            <label>Blood Group</label>
+            <select id="editMemberBloodGroup">
+              <option value="Unknown">Unknown</option>
+              <option value="A+">A+</option><option value="A-">A-</option>
+              <option value="B+">B+</option><option value="B-">B-</option>
+              <option value="AB+">AB+</option><option value="AB-">AB-</option>
+              <option value="O+">O+</option><option value="O-">O-</option>
+            </select>
+          </div>
+          <div>
+            <label>Referral Source</label>
+            <select id="editMemberReferral">
+              <option value="">—</option>
+              <option value="Walk-in">Walk-in</option>
+              <option value="Friend/Family Referral">Friend/Family Referral</option>
+              <option value="Social Media">Social Media</option>
+              <option value="Online Search">Online Search</option>
+              <option value="Advertisement">Advertisement</option>
+              <option value="Existing Member">Existing Member</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div><label>Emergency Contact Name</label><input type="text" id="editMemberEmergencyName"></div>
+          <div><label>Emergency Contact Phone</label><input type="text" id="editMemberEmergencyPhone"></div>
+        </div>
+        <label>Health Notes</label>
+        <textarea id="editMemberHealthNotes" rows="2"></textarea>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost btn-sm" onclick="closeModal('editMemberModal')">Cancel</button>
+          <button type="submit" class="btn-primary btn-sm" style="width:auto;">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Edit Payment modal -->
   <div class="modal-overlay no-print" id="editPaymentModal" style="display:none;">
     <div class="modal-box">
@@ -314,6 +498,7 @@
     let paymentsCache = [];
     let membersLite = [];
     let paymentMethods = [];
+    let membersCache = [];
 
     if (requireAdminAuth()) {
       const admin = getAdminInfo();
@@ -322,8 +507,10 @@
         document.getElementById('tenantHeader').innerHTML = '<h2>No gym ID provided.</h2>';
       } else {
         loadTenant();
-        loadPlans();
-        loadStaff();
+        Promise.all([loadPlans(), loadStaff()]).then(() => {
+          populateMemberDropdowns();
+          loadMembers();
+        });
         loadPaymentLookups().then(loadPayments);
       }
     }
@@ -652,6 +839,164 @@
       try {
         await adminFetch(`/api/admin/tenants/${tenantId}/staff/${staffId}`, { method: 'DELETE' });
         loadStaff();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // ── Members ──────────────────────────────────────────────────────────
+    function toggleMemberHealthSection(id) {
+      const el = document.getElementById(id);
+      el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function populateMemberDropdowns() {
+      const planOptions = plansCache.map(p => `<option value="${p.id}">${escapeHtml(p.name)} (${p.durationDays}d, ${fmtCurrency(p.fee)})${p.isActive ? '' : ' — inactive'}</option>`).join('');
+      document.getElementById('memberPlan').innerHTML = planOptions || '<option value="">No plans yet</option>';
+      document.getElementById('editMemberPlan').innerHTML = planOptions || '<option value="">No plans yet</option>';
+
+      const trainers = staffCache.filter(s => s.role === 'TRAINER');
+      const trainerOptions = '<option value="">None</option>' + trainers.map(s => `<option value="${s.id}">${escapeHtml(s.fullName)}</option>`).join('');
+      document.getElementById('memberTrainer').innerHTML = trainerOptions;
+      document.getElementById('editMemberTrainer').innerHTML = trainerOptions;
+    }
+
+    async function loadMembers() {
+      const tbody = document.getElementById('membersBody');
+      try {
+        membersCache = await adminFetch(`/api/admin/tenants/${tenantId}/members`);
+        renderMembers();
+      } catch (err) {
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="7">${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function renderMembers() {
+      const tbody = document.getElementById('membersBody');
+      const search = document.getElementById('memberSearchInput').value.trim().toLowerCase();
+      const filtered = search
+        ? membersCache.filter(m => m.fullName.toLowerCase().includes(search) || (m.phone || '').includes(search))
+        : membersCache;
+
+      tbody.innerHTML = filtered.length
+        ? filtered.map(memberRowHtml).join('')
+        : '<tr class="empty-row"><td colspan="7">No members found.</td></tr>';
+    }
+
+    function memberRowHtml(m) {
+      const statusBadge = m.status === 'Active'
+        ? '<span class="badge active">Active</span>'
+        : '<span class="badge suspended">Inactive</span>';
+      return `
+        <tr>
+          <td>${escapeHtml(m.fullName)}</td>
+          <td>${escapeHtml(m.phone || '—')}</td>
+          <td>${escapeHtml(m.plan?.name || '—')}</td>
+          <td>${statusBadge}</td>
+          <td>${escapeHtml(m.trainerName || '—')}</td>
+          <td>${m.membershipExpiry ? fmtDate(m.membershipExpiry) : '—'}</td>
+          <td style="white-space:nowrap;">
+            <button class="btn-ghost btn-sm" onclick="openEditMember(${m.id})">Edit</button>
+            <button class="btn-danger btn-sm" onclick="deleteMember(${m.id})">Delete</button>
+          </td>
+        </tr>`;
+    }
+
+    document.getElementById('addMemberForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const dob = document.getElementById('memberDob').value;
+      try {
+        await adminFetch(`/api/admin/tenants/${tenantId}/members`, {
+          method: 'POST',
+          body: JSON.stringify({
+            fullName: document.getElementById('memberFullName').value.trim(),
+            phone: document.getElementById('memberPhone').value.trim(),
+            email: document.getElementById('memberEmail').value.trim(),
+            location: document.getElementById('memberLocation').value.trim(),
+            planId: parseInt(document.getElementById('memberPlan').value, 10),
+            status: document.getElementById('memberStatus').value,
+            trainerId: document.getElementById('memberTrainer').value ? parseInt(document.getElementById('memberTrainer').value, 10) : null,
+            password: document.getElementById('memberPassword').value || undefined,
+            ...(dob ? { dateOfBirth: new Date(dob).toISOString() } : {}),
+            gender: document.getElementById('memberGender').value,
+            bloodGroup: document.getElementById('memberBloodGroup').value,
+            referralSource: document.getElementById('memberReferral').value,
+            emergencyContactName: document.getElementById('memberEmergencyName').value.trim(),
+            emergencyContactPhone: document.getElementById('memberEmergencyPhone').value.trim(),
+            healthNotes: document.getElementById('memberHealthNotes').value.trim(),
+          }),
+        });
+        document.getElementById('addMemberForm').reset();
+        loadMembers();
+        loadTenant();
+        loadPaymentLookups();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    function openEditMember(memberId) {
+      const m = membersCache.find(x => x.id === memberId);
+      if (!m) return;
+      document.getElementById('editMemberId').value = m.id;
+      document.getElementById('editMemberFullName').value = m.fullName || '';
+      document.getElementById('editMemberPhone').value = m.phone || '';
+      document.getElementById('editMemberEmail').value = m.email || '';
+      document.getElementById('editMemberLocation').value = m.location || '';
+      document.getElementById('editMemberPlan').value = m.planId;
+      document.getElementById('editMemberStatus').value = m.status;
+      document.getElementById('editMemberTrainer').value = m.trainerId || '';
+      document.getElementById('editMemberPassword').value = '';
+      document.getElementById('editMemberDob').value = m.dateOfBirth ? m.dateOfBirth.substring(0, 10) : '';
+      document.getElementById('editMemberGender').value = m.gender || '';
+      document.getElementById('editMemberBloodGroup').value = m.bloodGroup || 'Unknown';
+      document.getElementById('editMemberReferral').value = m.referralSource || '';
+      document.getElementById('editMemberEmergencyName').value = m.emergencyContactName || '';
+      document.getElementById('editMemberEmergencyPhone').value = m.emergencyContactPhone || '';
+      document.getElementById('editMemberHealthNotes').value = m.healthNotes || '';
+      document.getElementById('editMemberModal').style.display = 'flex';
+    }
+
+    document.getElementById('editMemberForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const memberId = document.getElementById('editMemberId').value;
+      const password = document.getElementById('editMemberPassword').value;
+      const dob = document.getElementById('editMemberDob').value;
+      try {
+        await adminFetch(`/api/admin/tenants/${tenantId}/members/${memberId}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            fullName: document.getElementById('editMemberFullName').value.trim(),
+            phone: document.getElementById('editMemberPhone').value.trim(),
+            email: document.getElementById('editMemberEmail').value.trim(),
+            location: document.getElementById('editMemberLocation').value.trim(),
+            planId: parseInt(document.getElementById('editMemberPlan').value, 10),
+            status: document.getElementById('editMemberStatus').value,
+            trainerId: document.getElementById('editMemberTrainer').value ? parseInt(document.getElementById('editMemberTrainer').value, 10) : null,
+            ...(password ? { password } : {}),
+            dateOfBirth: dob ? new Date(dob).toISOString() : null,
+            gender: document.getElementById('editMemberGender').value,
+            bloodGroup: document.getElementById('editMemberBloodGroup').value,
+            referralSource: document.getElementById('editMemberReferral').value,
+            emergencyContactName: document.getElementById('editMemberEmergencyName').value.trim(),
+            emergencyContactPhone: document.getElementById('editMemberEmergencyPhone').value.trim(),
+            healthNotes: document.getElementById('editMemberHealthNotes').value.trim(),
+          }),
+        });
+        closeModal('editMemberModal');
+        loadMembers();
+        loadTenant();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    async function deleteMember(memberId) {
+      if (!confirm('Delete this member? This also removes their attendance and payment history.')) return;
+      try {
+        await adminFetch(`/api/admin/tenants/${tenantId}/members/${memberId}`, { method: 'DELETE' });
+        loadMembers();
+        loadTenant();
       } catch (err) {
         alert(err.message);
       }
