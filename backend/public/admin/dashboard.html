@@ -235,7 +235,7 @@
           <td>${escapeHtml(t.ownerName || '—')}<br><span class="muted">${escapeHtml(t.ownerEmail || '')}</span></td>
           <td>${t.memberCount}</td>
           <td>${t.staffCount}</td>
-          <td>${fmtCurrency(t.totalRevenue)}</td>
+          <td>${fmtCurrency(t.totalRevenue, t.currencySymbol || '$')}</td>
           <td>${statusBadge}</td>
           <td>${fmtDate(t.createdAt)}</td>
           <td style="white-space:nowrap;">

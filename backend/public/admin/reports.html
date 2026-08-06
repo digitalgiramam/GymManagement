@@ -88,7 +88,7 @@
         const topByMembers = [...tenants].sort((a, b) => b.memberCount - a.memberCount).slice(0, 10);
 
         document.getElementById('topRevenueBody').innerHTML = topByRevenue.length
-          ? topByRevenue.map(t => `<tr><td><a href="tenant.html?id=${t.id}">${escapeHtml(t.name)}</a></td><td>${fmtCurrency(t.totalRevenue)}</td></tr>`).join('')
+          ? topByRevenue.map(t => `<tr><td><a href="tenant.html?id=${t.id}">${escapeHtml(t.name)}</a></td><td>${fmtCurrency(t.totalRevenue, t.currencySymbol || '$')}</td></tr>`).join('')
           : '<tr class="empty-row"><td colspan="2">No gyms yet.</td></tr>';
 
         document.getElementById('topMembersBody').innerHTML = topByMembers.length

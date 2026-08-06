@@ -102,7 +102,7 @@ router.get('/tenants', async (req, res) => {
   const search = req.query.search?.toString().trim() || null;
   try {
     const { rows } = await query(
-      `SELECT t.id, t.name, t.address, t.phone, t."isSuspended", t."createdAt",
+      `SELECT t.id, t.name, t.address, t.phone, t."isSuspended", t."createdAt", t."currencySymbol",
               u.name  AS "ownerName",
               u.email AS "ownerEmail",
               (SELECT COUNT(*) FROM members m WHERE m."tenantId" = t.id)  AS "memberCount",
