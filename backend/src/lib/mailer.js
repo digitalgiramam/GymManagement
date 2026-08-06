@@ -10,17 +10,28 @@
  * time see a clear message instead of a silent failure.
  */
 
-const nodemailer = require('nodemailer');
+// nodemailer is required lazily (inside getTransporter, wrapped in try/catch)
+// rather than at module load time. This is deliberate: this module is
+// require()'d from api/index.js's top level, so if nodemailer were ever
+// missing or failed to load in a given deployment, a top-level require()
+// would crash the *entire* serverless function — breaking every route in the
+// app, not just the password-reset feature. Loading it lazily means a
+// problem here only disables password-reset emails (falling back to
+// console-logging the reset link) instead of taking down the whole API.
 
 let _transporter = null;
 let _warnedMissingConfig = false;
+let _warnedLoadFailure = false;
 
 function isSmtpConfigured() {
   return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
 }
 
 function getTransporter() {
-  if (!_transporter && isSmtpConfigured()) {
+  if (_transporter || !isSmtpConfigured()) return _transporter;
+
+  try {
+    const nodemailer = require('nodemailer');
     _transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT, 10) || 587,
@@ -30,6 +41,11 @@ function getTransporter() {
         pass: process.env.SMTP_PASS,
       },
     });
+  } catch (err) {
+    if (!_warnedLoadFailure) {
+      console.error('[mailer] Failed to load nodemailer — reset links will be logged instead of emailed:', err.message);
+      _warnedLoadFailure = true;
+    }
   }
   return _transporter;
 }
