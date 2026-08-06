@@ -136,7 +136,7 @@
         <form id="addPlanForm" class="form-inline">
           <div><label>Name</label><input type="text" id="planName" required></div>
           <div><label>Duration (days)</label><input type="number" id="planDuration" min="1" required></div>
-          <div><label>Fee</label><input type="number" id="planFee" min="0" step="0.01" required></div>
+          <div><label>Fee (<span class="currency-label">$</span>)</label><input type="number" id="planFee" min="0" step="0.01" required></div>
           <button type="submit" class="btn-primary" style="width:auto;">Add Plan</button>
         </form>
       </div>
@@ -284,7 +284,7 @@
             <label>Method</label>
             <select id="paymentMethod" required></select>
           </div>
-          <div><label>Amount</label><input type="number" id="paymentAmount" min="0" step="0.01" required></div>
+          <div><label>Amount (<span class="currency-label">$</span>)</label><input type="number" id="paymentAmount" min="0" step="0.01" required></div>
           <div><label>Date</label><input type="date" id="paymentDate"></div>
           <div><label>Notes</label><input type="text" id="paymentNotes" placeholder="Optional"></div>
           <button type="submit" class="btn-primary" style="width:auto;">Record Payment</button>
@@ -342,7 +342,7 @@
         <input type="text" id="editPlanName" required>
         <label>Duration (days)</label>
         <input type="number" id="editPlanDuration" min="1" required>
-        <label>Fee</label>
+        <label>Fee (<span class="currency-label">$</span>)</label>
         <input type="number" id="editPlanFee" min="0" step="0.01" required>
         <div class="checkbox-row">
           <input type="checkbox" id="editPlanActive">
@@ -475,7 +475,7 @@
       <h3>Edit Payment</h3>
       <form id="editPaymentForm">
         <input type="hidden" id="editPaymentId">
-        <label>Amount</label>
+        <label>Amount (<span class="currency-label">$</span>)</label>
         <input type="number" id="editPaymentAmount" min="0" step="0.01" required>
         <label>Method</label>
         <select id="editPaymentMethod" required></select>
@@ -499,6 +499,7 @@
     let membersLite = [];
     let paymentMethods = [];
     let membersCache = [];
+    let currencySymbol = '$';
 
     if (requireAdminAuth()) {
       const admin = getAdminInfo();
@@ -527,12 +528,18 @@
       try {
         const data = await adminFetch(`/api/admin/tenants/${tenantId}`);
         currentTenant = data.tenant;
+        currencySymbol = data.tenant.currencySymbol || '$';
         renderHeader(data.tenant);
+        updateCurrencyLabels();
 
         document.getElementById('kpiMembers').textContent       = data.memberStats.total;
         document.getElementById('kpiActiveMembers').textContent = data.memberStats.active;
         document.getElementById('kpiStaffCount').textContent    = data.staff.length;
-        document.getElementById('kpiRevenue').textContent       = fmtCurrency(data.revenue.total);
+        document.getElementById('kpiRevenue').textContent       = fmtCurrency(data.revenue.total, currencySymbol);
+
+        // Re-render anything that was drawn before the gym's currency was known
+        renderPlansTable();
+        renderPaymentsTable();
 
         // Owner form
         if (data.tenant.ownerName || data.tenant.ownerEmail) {
@@ -664,16 +671,24 @@
     });
 
     // ── Plans ────────────────────────────────────────────────────────────
+    function updateCurrencyLabels() {
+      document.querySelectorAll('.currency-label').forEach(el => { el.textContent = currencySymbol; });
+    }
+
     async function loadPlans() {
-      const tbody = document.getElementById('plansBody');
       try {
         plansCache = await adminFetch(`/api/admin/tenants/${tenantId}/plans`);
-        tbody.innerHTML = plansCache.length
-          ? plansCache.map(planRowHtml).join('')
-          : '<tr class="empty-row"><td colspan="6">No plans yet.</td></tr>';
+        renderPlansTable();
       } catch (err) {
-        tbody.innerHTML = `<tr class="empty-row"><td colspan="6">${escapeHtml(err.message)}</td></tr>`;
+        document.getElementById('plansBody').innerHTML = `<tr class="empty-row"><td colspan="6">${escapeHtml(err.message)}</td></tr>`;
       }
+    }
+
+    function renderPlansTable() {
+      const tbody = document.getElementById('plansBody');
+      tbody.innerHTML = plansCache.length
+        ? plansCache.map(planRowHtml).join('')
+        : '<tr class="empty-row"><td colspan="6">No plans yet.</td></tr>';
     }
 
     function planRowHtml(p) {
@@ -684,7 +699,7 @@
         <tr>
           <td>${escapeHtml(p.name)}</td>
           <td>${p.durationDays} days</td>
-          <td>${fmtCurrency(p.fee)}</td>
+          <td>${fmtCurrency(p.fee, currencySymbol)}</td>
           <td>${p._count?.members ?? 0}</td>
           <td>${statusBadge}</td>
           <td style="white-space:nowrap;">
@@ -851,7 +866,7 @@
     }
 
     function populateMemberDropdowns() {
-      const planOptions = plansCache.map(p => `<option value="${p.id}">${escapeHtml(p.name)} (${p.durationDays}d, ${fmtCurrency(p.fee)})${p.isActive ? '' : ' — inactive'}</option>`).join('');
+      const planOptions = plansCache.map(p => `<option value="${p.id}">${escapeHtml(p.name)} (${p.durationDays}d, ${fmtCurrency(p.fee, currencySymbol)})${p.isActive ? '' : ' — inactive'}</option>`).join('');
       document.getElementById('memberPlan').innerHTML = planOptions || '<option value="">No plans yet</option>';
       document.getElementById('editMemberPlan').innerHTML = planOptions || '<option value="">No plans yet</option>';
 
@@ -1023,15 +1038,19 @@
     }
 
     async function loadPayments() {
-      const tbody = document.getElementById('paymentsBody');
       try {
         paymentsCache = await adminFetch(`/api/admin/tenants/${tenantId}/payments`);
-        tbody.innerHTML = paymentsCache.length
-          ? paymentsCache.map(paymentRowHtml).join('')
-          : '<tr class="empty-row"><td colspan="7">No payments yet.</td></tr>';
+        renderPaymentsTable();
       } catch (err) {
-        tbody.innerHTML = `<tr class="empty-row"><td colspan="7">${escapeHtml(err.message)}</td></tr>`;
+        document.getElementById('paymentsBody').innerHTML = `<tr class="empty-row"><td colspan="7">${escapeHtml(err.message)}</td></tr>`;
       }
+    }
+
+    function renderPaymentsTable() {
+      const tbody = document.getElementById('paymentsBody');
+      tbody.innerHTML = paymentsCache.length
+        ? paymentsCache.map(paymentRowHtml).join('')
+        : '<tr class="empty-row"><td colspan="7">No payments yet.</td></tr>';
     }
 
     function paymentStatusBadge(status) {
@@ -1045,7 +1064,7 @@
         <tr>
           <td>${escapeHtml(p.member?.fullName || '—')}</td>
           <td>${escapeHtml(p.planName || '—')}</td>
-          <td>${fmtCurrency(p.amount)}${p.overdueAmount > 0 ? ` <span class="muted">(due ${fmtCurrency(p.overdueAmount)})</span>` : ''}</td>
+          <td>${fmtCurrency(p.amount, currencySymbol)}${p.overdueAmount > 0 ? ` <span class="muted">(due ${fmtCurrency(p.overdueAmount, currencySymbol)})</span>` : ''}</td>
           <td>${paymentStatusBadge(p.membershipStatus)}</td>
           <td>${escapeHtml(p.method?.name || '—')}</td>
           <td>${fmtDate(p.paymentDate)}</td>
@@ -1136,7 +1155,7 @@
             <tr><td class="muted">Staff Count</td><td>${staffCache.length}</td></tr>
             <tr><td class="muted">Plans (Active/Total)</td><td>${activePlans} / ${totalPlans}</td></tr>
             <tr><td class="muted">Total Revenue (all time)</td><td>${document.getElementById('kpiRevenue').textContent}</td></tr>
-            <tr><td class="muted">Revenue (last 200 payments shown)</td><td>${fmtCurrency(totalPayments)}</td></tr>
+            <tr><td class="muted">Revenue (last 200 payments shown)</td><td>${fmtCurrency(totalPayments, currencySymbol)}</td></tr>
           </table>
         </div>
 
@@ -1145,7 +1164,7 @@
           <table>
             <thead><tr><th>Name</th><th>Duration</th><th>Fee</th><th>Members</th><th>Status</th></tr></thead>
             <tbody>
-              ${plansCache.map(p => `<tr><td>${escapeHtml(p.name)}</td><td>${p.durationDays} days</td><td>${fmtCurrency(p.fee)}</td><td>${p._count?.members ?? 0}</td><td>${p.isActive ? 'Active' : 'Inactive'}</td></tr>`).join('') || '<tr class="empty-row"><td colspan="5">No plans.</td></tr>'}
+              ${plansCache.map(p => `<tr><td>${escapeHtml(p.name)}</td><td>${p.durationDays} days</td><td>${fmtCurrency(p.fee, currencySymbol)}</td><td>${p._count?.members ?? 0}</td><td>${p.isActive ? 'Active' : 'Inactive'}</td></tr>`).join('') || '<tr class="empty-row"><td colspan="5">No plans.</td></tr>'}
             </tbody>
           </table>
         </div>
@@ -1165,7 +1184,7 @@
           <table>
             <thead><tr><th>Member</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
             <tbody>
-              ${paymentsCache.slice(0, 20).map(p => `<tr><td>${escapeHtml(p.member?.fullName || '—')}</td><td>${fmtCurrency(p.amount)}</td><td>${p.membershipStatus}</td><td>${fmtDate(p.paymentDate)}</td></tr>`).join('') || '<tr class="empty-row"><td colspan="4">No payments.</td></tr>'}
+              ${paymentsCache.slice(0, 20).map(p => `<tr><td>${escapeHtml(p.member?.fullName || '—')}</td><td>${fmtCurrency(p.amount, currencySymbol)}</td><td>${p.membershipStatus}</td><td>${fmtDate(p.paymentDate)}</td></tr>`).join('') || '<tr class="empty-row"><td colspan="4">No payments.</td></tr>'}
             </tbody>
           </table>
         </div>

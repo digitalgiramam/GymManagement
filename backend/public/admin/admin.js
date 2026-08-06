@@ -91,9 +91,9 @@ async function adminDownload(path, filename) {
   URL.revokeObjectURL(url);
 }
 
-function fmtCurrency(n) {
+function fmtCurrency(n, symbol = '$') {
   const v = Number(n || 0);
-  return '$' + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return symbol + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function fmtDate(iso) {
