@@ -23,6 +23,12 @@ interface ApiService {
     @POST("auth/member-login")
     suspend fun memberLogin(@Body request: LoginRequest): Response<AuthResponse>
 
+    @POST("auth/forgot-password")
+    suspend fun forgotPassword(@Body request: ForgotPasswordRequest): Response<ForgotPasswordResponse>
+
+    @POST("auth/reset-password")
+    suspend fun resetPassword(@Body request: ResetPasswordRequest): Response<ResetPasswordResponse>
+
     // ── Member Portal (self-service) ───────────────────────────────────────
     @GET("member-portal/me")
     suspend fun getMemberProfile(): Response<MemberProfile>

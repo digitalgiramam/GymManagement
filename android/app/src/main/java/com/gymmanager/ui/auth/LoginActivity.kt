@@ -87,6 +87,9 @@ class LoginActivity : AppCompatActivity() {
             isRegisterMode = !isRegisterMode
             updateModeUI()
         }
+        binding.tvForgotPassword.setOnClickListener {
+            startActivity(Intent(this, ForgotPasswordActivity::class.java))
+        }
     }
 
     private fun updateModeUI() {
@@ -125,6 +128,9 @@ class LoginActivity : AppCompatActivity() {
                 LoginRole.MEMBER -> "Member Portal"
             }
         }
+
+        // Only Owners can reset via email code; hide during register mode too.
+        binding.tvForgotPassword.visibility = if (isOwner && !isRegisterMode) View.VISIBLE else View.GONE
     }
 
     private fun handleSubmit() {

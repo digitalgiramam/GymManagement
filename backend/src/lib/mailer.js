@@ -53,35 +53,25 @@ function getTransporter() {
 }
 
 /**
- * Sends a password-reset email to a Super Admin. Falls back to console
- * logging if SMTP isn't configured, so this never throws and blocks the
- * (deliberately generic) API response to the caller.
+ * Shared send path for every email this app sends. Falls back to console
+ * logging if SMTP isn't configured (or fails to load), and never throws —
+ * callers get back a { delivered, reason? } result instead.
  */
-async function sendPasswordResetEmail(toEmail, resetLink) {
-  const subject = 'Reset your Super Admin password';
-  const text = `We received a request to reset your Super Admin password.\n\n` +
-    `Reset it here (valid for 1 hour):\n${resetLink}\n\n` +
-    `If you didn't request this, you can safely ignore this email.`;
-  const html = `
-    <p>We received a request to reset your Super Admin password.</p>
-    <p><a href="${resetLink}">Click here to reset your password</a> (valid for 1 hour).</p>
-    <p style="color:#8b92a3;font-size:13px;">If you didn't request this, you can safely ignore this email.</p>
-  `;
-
+async function deliverEmail({ to, subject, text, html, fallbackLogLine }) {
   const transporter = getTransporter();
   if (!transporter) {
     if (!_warnedMissingConfig) {
-      console.warn('[mailer] SMTP not configured — logging reset link instead of emailing it.');
+      console.warn('[mailer] SMTP not configured — logging instead of emailing.');
       _warnedMissingConfig = true;
     }
-    console.log(`[mailer] Password reset link for ${toEmail}: ${resetLink}`);
+    console.log(`[mailer] ${fallbackLogLine}`);
     return { delivered: false, reason: 'SMTP not configured' };
   }
 
   try {
     await transporter.sendMail({
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
-      to: toEmail,
+      to,
       subject,
       text,
       html,
@@ -93,4 +83,39 @@ async function sendPasswordResetEmail(toEmail, resetLink) {
   }
 }
 
-module.exports = { sendPasswordResetEmail, isSmtpConfigured };
+/** Super Admin "forgot password" — emails a reset link. */
+async function sendPasswordResetEmail(toEmail, resetLink) {
+  return deliverEmail({
+    to: toEmail,
+    subject: 'Reset your Super Admin password',
+    text: `We received a request to reset your Super Admin password.\n\n` +
+      `Reset it here (valid for 1 hour):\n${resetLink}\n\n` +
+      `If you didn't request this, you can safely ignore this email.`,
+    html: `
+      <p>We received a request to reset your Super Admin password.</p>
+      <p><a href="${resetLink}">Click here to reset your password</a> (valid for 1 hour).</p>
+      <p style="color:#8b92a3;font-size:13px;">If you didn't request this, you can safely ignore this email.</p>
+    `,
+    fallbackLogLine: `Password reset link for ${toEmail}: ${resetLink}`,
+  });
+}
+
+/** Gym Owner "forgot password" (mobile app) — emails a 6-digit code, entered directly in the app. */
+async function sendPasswordResetCodeEmail(toEmail, code) {
+  return deliverEmail({
+    to: toEmail,
+    subject: 'Your Gym Manager password reset code',
+    text: `Your password reset code is: ${code}\n\n` +
+      `Enter this in the app to set a new password. It's valid for 15 minutes.\n\n` +
+      `If you didn't request this, you can safely ignore this email.`,
+    html: `
+      <p>Your password reset code is:</p>
+      <p style="font-size:28px; font-weight:700; letter-spacing:4px;">${code}</p>
+      <p>Enter this in the app to set a new password. It's valid for 15 minutes.</p>
+      <p style="color:#8b92a3;font-size:13px;">If you didn't request this, you can safely ignore this email.</p>
+    `,
+    fallbackLogLine: `Password reset code for ${toEmail}: ${code}`,
+  });
+}
+
+module.exports = { sendPasswordResetEmail, sendPasswordResetCodeEmail, isSmtpConfigured };

@@ -9,10 +9,18 @@
 const express = require('express');
 const jwt     = require('jsonwebtoken');
 const bcrypt  = require('bcryptjs');
+const crypto  = require('crypto');
 const { z }   = require('zod');
 const { query } = require('../lib/db');
+const { sendPasswordResetCodeEmail } = require('../lib/mailer');
 
 const router = express.Router();
+
+const RESET_CODE_TTL_MS = 15 * 60 * 1000; // 15 minutes — shorter-lived than a link since it's short/guessable
+
+function hashResetCode(code) {
+  return crypto.createHash('sha256').update(code).digest('hex');
+}
 
 const registerSchema = z.object({
   email:    z.string().email('Valid email required'),
@@ -114,6 +122,78 @@ router.post('/login', async (req, res) => {
     });
   } catch (err) {
     console.error('[auth/login]', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// ── POST /api/auth/forgot-password ──────────────────────────────────────────
+// Gym Owner only (mobile app). Emails a 6-digit code — no deep-linking set up
+// in the app yet, so a code the user types in is simpler than a link.
+const forgotPasswordSchema = z.object({
+  email: z.string().email('Valid email required'),
+});
+
+router.post('/forgot-password', async (req, res) => {
+  const parsed = forgotPasswordSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
+
+  const { email } = parsed.data;
+  // Always the same generic response — don't leak whether an account exists.
+  const genericResponse = { message: 'If an account exists for that email, a reset code has been sent.' };
+
+  try {
+    const { rows } = await query(`SELECT id, email FROM users WHERE email = $1 LIMIT 1`, [email]);
+    const user = rows[0];
+    if (!user) return res.json(genericResponse);
+
+    const code     = crypto.randomInt(100000, 1000000).toString(); // 6 digits, zero-padded by range
+    const codeHash = hashResetCode(code);
+    const expiry   = new Date(Date.now() + RESET_CODE_TTL_MS);
+
+    await query(
+      `UPDATE users SET "resetCodeHash" = $1, "resetCodeExpiry" = $2 WHERE id = $3`,
+      [codeHash, expiry, user.id],
+    );
+
+    await sendPasswordResetCodeEmail(user.email, code);
+    return res.json(genericResponse);
+  } catch (err) {
+    console.error('[auth/forgot-password]', err);
+    return res.json(genericResponse); // still generic, even on internal error
+  }
+});
+
+// ── POST /api/auth/reset-password ───────────────────────────────────────────
+const resetPasswordSchema = z.object({
+  email:    z.string().email('Valid email required'),
+  code:     z.string().min(6, 'Reset code is required').max(6),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
+router.post('/reset-password', async (req, res) => {
+  const parsed = resetPasswordSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
+
+  const { email, code, password } = parsed.data;
+  const codeHash = hashResetCode(code);
+
+  try {
+    const { rows } = await query(
+      `SELECT id FROM users WHERE email = $1 AND "resetCodeHash" = $2 AND "resetCodeExpiry" > NOW()`,
+      [email, codeHash],
+    );
+    const user = rows[0];
+    if (!user) return res.status(400).json({ error: 'This code is invalid or has expired. Please request a new one.' });
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    await query(
+      `UPDATE users SET "passwordHash" = $1, "resetCodeHash" = NULL, "resetCodeExpiry" = NULL WHERE id = $2`,
+      [passwordHash, user.id],
+    );
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[auth/reset-password]', err);
     return res.status(500).json({ error: 'Internal server error.' });
   }
 });

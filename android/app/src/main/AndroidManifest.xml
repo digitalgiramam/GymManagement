@@ -24,6 +24,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Forgot password — Owner-only, 6-digit code emailed then entered in-app -->
+        <activity
+            android:name=".ui.auth.ForgotPasswordActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- Onboarding — create gym after first sign-in -->
         <activity
             android:name=".ui.onboarding.OnboardingActivity"

@@ -31,6 +31,28 @@ data class AuthUser(
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  Auth — forgot / reset password (Owner only, 6-digit emailed code)
+// ─────────────────────────────────────────────────────────────────────────────
+
+data class ForgotPasswordRequest(
+    val email: String,
+)
+
+data class ForgotPasswordResponse(
+    val message: String,
+)
+
+data class ResetPasswordRequest(
+    val email: String,
+    val code: String,
+    val password: String,
+)
+
+data class ResetPasswordResponse(
+    val success: Boolean,
+)
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  Onboarding
 // ─────────────────────────────────────────────────────────────────────────────
 

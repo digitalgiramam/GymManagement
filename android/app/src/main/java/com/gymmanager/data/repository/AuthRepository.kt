@@ -34,6 +34,14 @@ class AuthRepository(
         return result
     }
 
+    /** Owner "forgot password" — step 1: request a 6-digit code emailed to them. */
+    suspend fun forgotPassword(email: String): NetworkResult<ForgotPasswordResponse> =
+        safeApiCall { api.forgotPassword(ForgotPasswordRequest(email)) }
+
+    /** Owner "forgot password" — step 2: submit the emailed code + new password. */
+    suspend fun resetPassword(email: String, code: String, password: String): NetworkResult<ResetPasswordResponse> =
+        safeApiCall { api.resetPassword(ResetPasswordRequest(email, code, password)) }
+
     private fun saveSession(response: AuthResponse) {
         tokenManager.saveToken(response.token)
         tokenManager.saveTenantId(response.user.tenantId)
