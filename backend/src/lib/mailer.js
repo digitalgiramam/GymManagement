@@ -19,6 +19,8 @@
 // problem here only disables password-reset emails (falling back to
 // console-logging the reset link) instead of taking down the whole API.
 
+const { logError } = require('./errorLog');
+
 let _transporter = null;
 let _warnedMissingConfig = false;
 let _warnedLoadFailure = false;
@@ -43,7 +45,7 @@ function getTransporter() {
     });
   } catch (err) {
     if (!_warnedLoadFailure) {
-      console.error('[mailer] Failed to load nodemailer — reset links will be logged instead of emailed:', err.message);
+      logError('mailer', new Error(`Failed to load nodemailer — reset links will be logged instead of emailed: ${err.message}`));
       _warnedLoadFailure = true;
     }
   }
@@ -86,7 +88,7 @@ async function sendPasswordResetEmail(toEmail, resetLink) {
     });
     return { delivered: true };
   } catch (err) {
-    console.error('[mailer] Failed to send password reset email:', err.message);
+    logError('mailer', err);
     return { delivered: false, reason: err.message };
   }
 }

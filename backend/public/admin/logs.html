@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Error Logs — Super Admin Portal</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">Gym<span>SaaS</span> · Platform Admin</div>
+    <div class="topbar-right">
+      <span id="adminName"></span>
+      <button class="btn-ghost btn-sm" onclick="logoutAdmin()">Log out</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <a href="dashboard.html" class="back-link">&larr; Back to dashboard</a>
+
+    <div class="panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <h2 style="margin:0;">Error Logs <span class="hint">most recent 200 — SMTP failures, unhandled errors, etc.</span></h2>
+        <div>
+          <button class="btn-ghost btn-sm" onclick="loadLogs()">Refresh</button>
+          <button class="btn-ghost btn-sm" onclick="downloadLogs()">Download .txt</button>
+          <button class="btn-danger btn-sm" onclick="clearLogs()">Clear All</button>
+        </div>
+      </div>
+
+      <table style="margin-top:14px;">
+        <thead><tr><th>Time</th><th>Source</th><th>Message</th><th></th></tr></thead>
+        <tbody id="logsBody"><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Stack trace modal -->
+  <div class="modal-overlay" id="stackModal" style="display:none;">
+    <div class="modal-box" style="max-width:640px;">
+      <h3>Stack Trace</h3>
+      <div class="token-box" id="stackBox" style="max-height:50vh; overflow:auto; white-space:pre-wrap;"></div>
+      <div class="modal-actions">
+        <button class="btn-primary btn-sm" style="width:auto;" onclick="document.getElementById('stackModal').style.display='none';">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+  <script>
+    let logsCache = [];
+
+    if (requireAdminAuth()) {
+      const admin = getAdminInfo();
+      document.getElementById('adminName').textContent = admin?.fullName || admin?.email || '';
+      loadLogs();
+    }
+
+    async function loadLogs() {
+      const tbody = document.getElementById('logsBody');
+      tbody.innerHTML = '<tr class="loading-row"><td colspan="4">Loading…</td></tr>';
+      try {
+        logsCache = await adminFetch('/api/admin/logs/?limit=200');
+        tbody.innerHTML = logsCache.length
+          ? logsCache.map(rowHtml).join('')
+          : '<tr class="empty-row"><td colspan="4">No errors logged. 🎉</td></tr>';
+      } catch (err) {
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="4">${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function rowHtml(l) {
+      return `
+        <tr>
+          <td style="white-space:nowrap;">${fmtDate(l.createdAt)} ${new Date(l.createdAt).toLocaleTimeString()}</td>
+          <td><span class="badge suspended">${escapeHtml(l.source)}</span></td>
+          <td>${escapeHtml(l.message)}</td>
+          <td>${l.stack ? `<button class="btn-ghost btn-sm" onclick="showStack(${l.id})">Stack</button>` : ''}</td>
+        </tr>`;
+    }
+
+    function showStack(id) {
+      const l = logsCache.find(x => x.id === id);
+      if (!l) return;
+      document.getElementById('stackBox').textContent = l.stack || '(no stack trace)';
+      document.getElementById('stackModal').style.display = 'flex';
+    }
+
+    async function downloadLogs() {
+      try {
+        await adminDownload('/api/admin/logs/download?limit=500', `error-log-${new Date().toISOString().slice(0,10)}.txt`);
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function clearLogs() {
+      if (!confirm('Delete all logged errors? This cannot be undone.')) return;
+      try {
+        await adminFetch('/api/admin/logs/', { method: 'DELETE' });
+        loadLogs();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+  </script>
+</body>
+</html>

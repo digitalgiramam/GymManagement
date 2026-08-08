@@ -29,6 +29,9 @@ const progressRoutes      = require('../src/routes/progress');
 const goalsRoutes         = require('../src/routes/goals');
 const adminAuthRoutes     = require('../src/routes/admin-auth');
 const adminRoutes         = require('../src/routes/admin');
+const logsRoutes          = require('../src/routes/logs');
+
+const { logError } = require('../src/lib/errorLog');
 
 // ── Middleware ─────────────────────────────────────────────────────────────
 const { authenticateJWT, requireTenant, requireSuperAdmin } = require('../src/middleware/auth');
@@ -79,6 +82,7 @@ app.use('/api/staff-portal', authenticateJWT, staffPortalRoutes);
 
 // ── Super Admin — platform-level, cross-tenant management ──────────────────
 app.use('/api/admin/auth', adminAuthRoutes);
+app.use('/api/admin/logs', authenticateJWT, requireSuperAdmin, logsRoutes);
 app.use('/api/admin',      authenticateJWT, requireSuperAdmin, adminRoutes);
 
 // ── Super Admin web portal — static pages (login/dashboard/tenant detail) ──
@@ -89,7 +93,7 @@ app.use((_req, res) => res.status(404).json({ error: 'Route not found.' }));
 
 // ── Global error handler ───────────────────────────────────────────────────
 app.use((err, _req, res, _next) => {
-  console.error('[unhandled]', err);
+  logError('unhandled', err);
   res.status(500).json({ error: 'Internal server error.' });
 });
 
